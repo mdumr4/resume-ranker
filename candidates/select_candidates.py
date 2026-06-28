@@ -127,37 +127,74 @@ def format_candidate_md(data):
 
     return name, "\n".join(md)
 
+import csv
+
 def main():
     jsonl_file = "candidates.jsonl"
-    output_dir = "candidates"
+    csv_file = "Trails/Trail_1/submission.csv"
+    output_dir = "Trails/Trail_1/candidates"
     
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
         print(f"Created directory: {output_dir}")
         
-    print("Selecting 10 random candidates using reservoir sampling...")
-    sampled_lines = reservoir_sample(jsonl_file, 10)
+    if not os.path.exists(csv_file):
+        print(f"Error: Could not find {csv_file}")
+        return
+        
+    print(f"Reading ranks from {csv_file}...")
     
-    for idx, line in enumerate(sampled_lines):
-        try:
-            data = json.loads(line)
-            name, md_content = format_candidate_md(data)
+    # Read the CSV to get candidate IDs
+    candidate_scores = []
+    with open(csv_file, 'r', encoding='utf-8') as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            candidate_scores.append(row)
             
-            # Clean name for safe filename
-            safe_name = "".join([c for c in name if c.isalpha() or c.isspace() or c == '-']).strip()
-            if not safe_name:
-                safe_name = f"Candidate_{data.get('candidate_id', idx)}"
+    if not candidate_scores:
+        print("CSV is empty.")
+        return
+        
+    # Assuming CSV is sorted by rank, top 10 are first, bottom 10 are last
+    top_10 = candidate_scores[:10]
+    bottom_10 = candidate_scores[-10:] if len(candidate_scores) >= 10 else []
+    
+    target_ids = {row['candidate_id']: "TOP" for row in top_10}
+    for row in bottom_10:
+        if row['candidate_id'] not in target_ids:
+            target_ids[row['candidate_id']] = "BOTTOM"
+            
+    print(f"Extracting {len(target_ids)} candidates from {jsonl_file}...")
+    
+    found_count = 0
+    with open(jsonl_file, 'r', encoding='utf-8') as f:
+        for line in f:
+            if found_count >= len(target_ids):
+                break
                 
-            filename = os.path.join(output_dir, f"{safe_name}.md")
-            # If name duplicate exists, add ID
-            if os.path.exists(filename):
-                filename = os.path.join(output_dir, f"{safe_name}_{data.get('candidate_id')}.md")
+            try:
+                data = json.loads(line)
+                c_id = data.get("candidate_id")
                 
-            with open(filename, 'w', encoding='utf-8') as out_f:
-                out_f.write(md_content)
-            print(f"Saved: {filename}")
-        except Exception as e:
-            print(f"Error parsing line {idx}: {e}")
+                if c_id in target_ids:
+                    group = target_ids[c_id]
+                    name, md_content = format_candidate_md(data)
+                    
+                    # Clean name for safe filename
+                    safe_name = "".join([c for c in name if c.isalpha() or c.isspace() or c == '-']).strip()
+                    if not safe_name:
+                        safe_name = f"Candidate_{c_id}"
+                        
+                    filename = os.path.join(output_dir, f"{group}_{safe_name}.md")
+                    
+                    with open(filename, 'w', encoding='utf-8') as out_f:
+                        out_f.write(md_content)
+                    print(f"Saved: {filename}")
+                    found_count += 1
+            except Exception as e:
+                pass
+                
+    print("Done!")
 
 if __name__ == "__main__":
     main()
