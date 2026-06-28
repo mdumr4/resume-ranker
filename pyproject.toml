@@ -12,6 +12,7 @@ dependencies = [
     "numpy>=2.4.6",
     "onnxruntime>=1.27.0",
     "pandas>=3.0.3",
+    "psutil>=7.2.2",
     "pyarrow>=24.0.0",
     "python-docx>=1.2.0",
     "rank-bm25>=0.2.2",

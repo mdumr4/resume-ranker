@@ -128,11 +128,12 @@ def format_candidate_md(data):
     return name, "\n".join(md)
 
 import csv
+import pandas as pd
 
 def main():
     jsonl_file = "candidates.jsonl"
-    csv_file = "submission.csv"
-    output_dir = "Trails/Trail_2/candidates"
+    csv_file = "Trails/Trail_3/submission.csv"
+    output_dir = "Trails/Trail_3/candidates"
     
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
@@ -143,26 +144,14 @@ def main():
         return
         
     print(f"Reading ranks from {csv_file}...")
+    df = pd.read_csv(csv_file)
     
-    # Read the CSV to get candidate IDs
-    candidate_scores = []
-    with open(csv_file, 'r', encoding='utf-8') as f:
-        reader = csv.DictReader(f)
-        for row in reader:
-            candidate_scores.append(row)
-            
-    if not candidate_scores:
-        print("CSV is empty.")
-        return
-        
-    # Assuming CSV is sorted by rank, top 10 are first, bottom 10 are last
-    top_10 = candidate_scores[:10]
-    bottom_10 = candidate_scores[-10:] if len(candidate_scores) >= 10 else []
+    # Extract candidate IDs to fetch
+    candidate_scores = df.to_dict('records')
+    ranks_91_100 = candidate_scores[90:100]
     
-    target_ids = {row['candidate_id']: "TOP" for row in top_10}
-    for row in bottom_10:
-        if row['candidate_id'] not in target_ids:
-            target_ids[row['candidate_id']] = "BOTTOM"
+    # Map candidate_id -> (Prefix, Rank)
+    target_ids = {row['candidate_id']: ("RANK", idx + 91) for idx, row in enumerate(ranks_91_100)}
             
     print(f"Extracting {len(target_ids)} candidates from {jsonl_file}...")
     
@@ -177,7 +166,8 @@ def main():
                 c_id = data.get("candidate_id")
                 
                 if c_id in target_ids:
-                    group = target_ids[c_id]
+                    prefix, rank_num = target_ids[c_id]
+                    rank_str = f"{rank_num:02d}"
                     name, md_content = format_candidate_md(data)
                     
                     # Clean name for safe filename
@@ -185,7 +175,7 @@ def main():
                     if not safe_name:
                         safe_name = f"Candidate_{c_id}"
                         
-                    filename = os.path.join(output_dir, f"{group}_{safe_name}.md")
+                    filename = os.path.join(output_dir, f"{prefix}_{rank_str}_{safe_name}.md")
                     
                     with open(filename, 'w', encoding='utf-8') as out_f:
                         out_f.write(md_content)

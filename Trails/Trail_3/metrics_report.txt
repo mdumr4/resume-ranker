@@ -1,0 +1,7 @@
+=== Trail 3 Resource Profile (L-12-v2) ===
+[Artifact Loading] Time: 16.20s | Mem Change: +724.30 MB | Peak Mem: 1147.90 MB
+[Dense Retrieval (FAISS)] Time: 0.21s | Mem Change: -180.78 MB | Peak Mem: 967.12 MB
+[Cross-Encoder Inference (L-12-v2)] Time: 705.96s | Mem Change: +503.16 MB | Peak Mem: 1470.28 MB
+[Math Scoring & Sorting] Time: 0.02s | Mem Change: +7.47 MB | Peak Mem: 1476.55 MB
+
+Total Pipeline Execution: 722.66 seconds
