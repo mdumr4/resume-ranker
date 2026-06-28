@@ -131,8 +131,8 @@ import csv
 
 def main():
     jsonl_file = "candidates.jsonl"
-    csv_file = "Trails/Trail_1/submission.csv"
-    output_dir = "Trails/Trail_1/candidates"
+    csv_file = "submission.csv"
+    output_dir = "Trails/Trail_2/candidates"
     
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
