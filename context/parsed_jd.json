@@ -1,0 +1,59 @@
+{
+  "role_title": "Senior AI Engineer — Founding Team",
+  "seniority_level": "senior",
+  "experience_range": {"min_years": 5, "max_years": 9, "is_hard_cutoff": false,
+    "note": "explicitly stated as a range, not a requirement; strong candidates outside band still considered"},
+  "required_skills": [
+    {"name": "embeddings-based retrieval systems", "examples": ["sentence-transformers","OpenAI embeddings","BGE","E5"], "importance": "must_have"},
+    {"name": "vector databases / hybrid search", "examples": ["Pinecone","Weaviate","Qdrant","Milvus","OpenSearch","Elasticsearch","FAISS"], "importance": "must_have"},
+    {"name": "Python", "importance": "must_have"},
+    {"name": "ranking evaluation frameworks", "examples": ["NDCG","MRR","MAP","A/B testing"], "importance": "must_have"}
+  ],
+  "preferred_skills": [
+    {"name": "LLM fine-tuning", "examples": ["LoRA","QLoRA","PEFT"]},
+    {"name": "learning-to-rank", "examples": ["XGBoost-based","neural"]},
+    {"name": "HR-tech / recruiting / marketplace domain exposure"},
+    {"name": "distributed systems / large-scale inference"},
+    {"name": "open-source AI/ML contributions"}
+  ],
+  "disqualifiers": {
+    "narrative": [
+      {"rule": "pure research/academic background with no production deployment", "strength": "hard"},
+      {"rule": "AI experience under 12 months built only on LangChain+OpenAI, with no pre-LLM ML production experience", "strength": "hard"},
+      {"rule": "senior engineer who hasn't written production code in 18+ months due to architecture/tech-lead drift", "strength": "hard"},
+      {"rule": "career trajectory shows title-chasing via company-hopping every ~1.5 years", "strength": "soft"},
+      {"rule": "GitHub/portfolio consists of framework tutorials rather than systems work", "strength": "soft"},
+      {"rule": "entire career at consulting firms with no product-company experience",
+        "companies": ["TCS","Infosys","Wipro","Accenture","Cognizant","Capgemini"],
+        "exception": "current employment at one of these is fine if prior product-company experience exists",
+        "strength": "hard"},
+      {"rule": "primary background in CV/speech/robotics without significant NLP/IR exposure", "strength": "hard"},
+      {"rule": "5+ years entirely closed-source with no external validation (papers, talks, OSS)", "strength": "soft"}
+    ]
+  },
+  "education_requirements": {"stated": false, "importance_weight": 0.02,
+    "evidence": "\"Skills are teachable; the rest mostly isn't\" — no degree/field requirement mentioned anywhere"},
+  "logistics": {
+    "preferred_locations": ["Pune","Noida"],
+    "welcome_locations": ["Hyderabad","Mumbai","Delhi NCR"],
+    "remote_policy": "hybrid, flexible cadence, quarterly offsite travel expected",
+    "international_policy": "case-by-case, no visa sponsorship",
+    "notice_period": {"preferred_max_days": 30, "buyout_eligible": true, "hard_cutoff": false,
+      "note": "30+ days still in scope, bar gets higher"}
+  },
+  "culture_signals": [
+    "async-first, writing-heavy communication",
+    "open disagreement, fast decision-making",
+    "tolerance for instability/changing internal assumptions",
+    "values 3+ year commitment, explicitly anti title-chasing"
+  ],
+  "ideal_candidate_narrative": "6-8 years total, 4-5 in applied ML/AI at product companies (not pure services); has shipped an end-to-end ranking/search/recommendation system to real users at meaningful scale; holds and can defend opinions on hybrid-vs-dense retrieval, offline-vs-online evaluation, and fine-tune-vs-prompt decisions; located in or willing to relocate to Noida/Pune; active on-platform or clearly job-seeking.",
+  "calibration_examples": {
+    "positive": [{"profile": "no 'RAG' or 'Pinecone' in text, but career history shows building a recommendation system at a product company", "verdict": "fit"}],
+    "negative": [{"profile": "skills list has every AI keyword, but title is 'Marketing Manager'", "verdict": "not a fit"}]
+  },
+  "behavioral_overrides": [
+    {"rule": "perfect-on-paper candidate inactive 6+ months with ~5% recruiter response rate should be down-weighted for availability regardless of fit score"}
+  ],
+  "section_importance": {"career": 0.45, "skills": 0.30, "profile": 0.20, "education": 0.05}
+}

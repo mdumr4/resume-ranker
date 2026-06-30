@@ -132,8 +132,8 @@ import pandas as pd
 
 def main():
     jsonl_file = "candidates.jsonl"
-    csv_file = "Trails/Trail_3/submission.csv"
-    output_dir = "Trails/Trail_3/candidates"
+    csv_file = "Trails/Trail_4/submission.csv"
+    output_dir = "Trails/Trail_4/candidates"
     
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
@@ -148,10 +148,14 @@ def main():
     
     # Extract candidate IDs to fetch
     candidate_scores = df.to_dict('records')
-    ranks_91_100 = candidate_scores[90:100]
+    top_10 = candidate_scores[:10]
+    bottom_10 = candidate_scores[-10:] if len(candidate_scores) >= 10 else []
     
     # Map candidate_id -> (Prefix, Rank)
-    target_ids = {row['candidate_id']: ("RANK", idx + 91) for idx, row in enumerate(ranks_91_100)}
+    target_ids = {row['candidate_id']: ("TOP", idx + 1) for idx, row in enumerate(top_10)}
+    for idx, row in enumerate(bottom_10):
+        if row['candidate_id'] not in target_ids:
+            target_ids[row['candidate_id']] = ("BOTTOM", idx + 1)
             
     print(f"Extracting {len(target_ids)} candidates from {jsonl_file}...")
     
