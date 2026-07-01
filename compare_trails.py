@@ -20,7 +20,7 @@ def compare_trails(trail_a_csv, trail_b_csv):
     df_b = df_b.sort_values('rank').reset_index(drop=True)
 
     print("========================================")
-    print("🏆 ALL 100 CANDIDATES COMPARISON 🏆")
+    print("ALL 100 CANDIDATES COMPARISON")
     print("========================================")
     
     top_n = min(100, len(df_a), len(df_b))
@@ -32,11 +32,17 @@ def compare_trails(trail_a_csv, trail_b_csv):
         print(f"{i+1:<5} | {cand_a:<30} | {cand_b:<30}")
 
     print("\n========================================")
-    print("🔄 FULL RANK SHIFT ANALYSIS 🔄")
+    print("FULL RANK SHIFT ANALYSIS")
     print("========================================")
     
-    # Merge on candidate ID to see how ranks shifted
-    merged = pd.merge(df_a, df_b, on='candidate_id', suffixes=('_A', '_B'))
+    # Merge on candidate ID to see how ranks shifted using an OUTER JOIN
+    merged = pd.merge(df_a, df_b, on='candidate_id', how='outer', suffixes=('_A', '_B'))
+    
+    # If a candidate is missing from a Top 100 list, it means they were ranked > 100 in that trail.
+    # We assign them a default rank of 5000 for calculation purposes.
+    merged['rank_A'] = merged['rank_A'].fillna(5000)
+    merged['rank_B'] = merged['rank_B'].fillna(5000)
+    
     merged['rank_shift'] = merged['rank_A'] - merged['rank_B']  # Positive means they went UP in rank in Trail B
     
     biggest_winners = merged.sort_values('rank_shift', ascending=False)
@@ -53,7 +59,7 @@ def compare_trails(trail_a_csv, trail_b_csv):
     # Save full analysis to CSV
     output_file = "rank_shift_analysis.csv"
     merged.sort_values('rank_B').to_csv(output_file, index=False)
-    print(f"\n✅ Full overlap and rank shift analysis for all candidates saved to: {output_file}")
+    print(f"\nFull overlap and rank shift analysis for all candidates saved to: {output_file}")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Compare two Trail outputs.")

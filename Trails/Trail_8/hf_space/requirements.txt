@@ -1,0 +1,8 @@
+pandas
+numpy
+faiss-cpu
+torch
+sentence-transformers
+transformers
+llama-cpp-python
+gradio

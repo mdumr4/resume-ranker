@@ -1,5 +1,7 @@
 import os
 import time
+GLOBAL_T0 = time.time() # START SANDBOX TIMER
+
 import pandas as pd
 import numpy as np
 import faiss
@@ -15,7 +17,9 @@ SPLADE_INDEX_PATH = "../../index/splade_combined_v3.npz"
 # Example Output from LLM_PROMPT.md
 # We split the query into two vectors: one for Career/Skills (FAISS/SPLADE) and one for Edu/Profile (FAISS/SPLADE).
 # But since we have a single combined index, we combine the queries for search, and the Cross-Encoder gets the whole thing.
-JD_SEARCH_QUERY = "5-9 years experience, building ranking models, search systems, machine learning pipelines. Python, Machine Learning, Recommendation Systems, XGBoost, PyTorch, FAISS. Fast-paced startup environment, autonomous, high ownership. Location: Pune, Noida. Mode: Hybrid. Budget: 15-40 LPA. Bachelors in CS or related field. Real-world experience matters more"
+JD_TECH = "5-9 years experience, building ranking models, search systems, machine learning pipelines. Python, Machine Learning, Recommendation Systems, XGBoost, PyTorch, FAISS."
+JD_LOGISTICS = "Fast-paced startup environment, autonomous, high ownership. Location: Pune, Noida. Mode: Hybrid. Budget: 15-40 LPA. Bachelors in CS or related field. Real-world experience matters more."
+JD_SEARCH_QUERY = f"{JD_TECH} {JD_LOGISTICS}"
 
 # Ensure we use GPU if available
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -122,58 +126,122 @@ def run_retrieval():
         cand_data = df[df['candidate_id'] == cid].iloc[0]
         print(f"Rank {rank+1}: {cid} | Hybrid Score: {score:.4f} | Trust: {cand_data['trust_score']:.2f}")
 
-    # --- STAGE 2: CROSS-ENCODER RE-RANKING ---
+    # --- STAGE 2: TWO-PART CROSS-ENCODER RE-RANKING ---
     print("\nLoading Cross-Encoder...")
-    ce_model = CrossEncoder('cross-encoder/ms-marco-MiniLM-L-6-v2', device=device)
+    ce_model = CrossEncoder('cross-encoder/ms-marco-MiniLM-L-12-v2', device=device)
     
-    ce_inputs = []
+    ce_inputs_tech = []
+    ce_inputs_logistics = []
     cids_in_order = []
     
     for cid, _ in top_500:
         row = df[df['candidate_id'] == cid].iloc[0]
-        # PERFECT ALIGNMENT: Concatenating exactly in the user's requested order
-        # Career -> Profile -> Skills -> Edu
-        text_combined = f"{row['text_career']} {row['text_profile']} {row['text_skills']} {row['text_edu']}"
-        ce_inputs.append([JD_SEARCH_QUERY, text_combined])
+        # Tech: Career + Skills
+        text_tech = f"{row['text_career']} {row['text_skills']}"
+        # Logistics: Profile + Edu
+        text_logistics = f"{row['text_profile']} {row['text_edu']}"
+        
+        ce_inputs_tech.append([JD_TECH, text_tech])
+        ce_inputs_logistics.append([JD_LOGISTICS, text_logistics])
         cids_in_order.append(cid)
         
-    print(f"\nScoring Top {len(top_500)} with Cross-Encoder...")
+    print(f"\nScoring Top {len(top_500)} with Two-Part Cross-Encoder...")
     t4 = time.time()
-    ce_predictions = ce_model.predict(ce_inputs)
-    t5 = time.time()
-    print(f"-> Cross-Encoder (500 candidates) completed in {t5-t4:.4f} seconds.")
+    # Predict both parts
+    ce_preds_tech = ce_model.predict(ce_inputs_tech)
+    ce_preds_logistics = ce_model.predict(ce_inputs_logistics)
     
-    final_results = list(zip(cids_in_order, ce_predictions))
+    # Normalize logits to 0.0 - 1.0 using Sigmoid
+    def sigmoid(x):
+        return 1 / (1 + np.exp(-x))
+        
+    prob_tech = sigmoid(ce_preds_tech)
+    prob_logistics = sigmoid(ce_preds_logistics)
+    
+    # Additive Weights Math Formula (70% Tech, 30% Logistics)
+    final_ce_scores = (0.70 * prob_tech) + (0.30 * prob_logistics)
+    
+    t5 = time.time()
+    print(f"-> Two-Part Cross-Encoder (500 candidates) completed in {t5-t4:.4f} seconds.")
+    
+    final_results = list(zip(cids_in_order, final_ce_scores))
     final_results.sort(key=lambda x: x[1], reverse=True)
 
-    # --- STAGE 3: GENERATE KAGGLE SUBMISSION ---
-    print("\nGenerating Kaggle submission.csv...")
+    # --- STAGE 3: GENERATIVE REASONING (LLAMA.CPP) ---
+    print("\n--- SANDBOX COMPUTE CHECK ---")
+    elapsed_so_far = time.time() - GLOBAL_T0
+    remaining_time = 300 - elapsed_so_far
+    print(f"Time Elapsed: {elapsed_so_far:.2f}s | Remaining Budget: {remaining_time:.2f}s")
+    
     submission_data = []
     
-    # We only need the Top 100 for the submission
-    for rank, (cid, score) in enumerate(final_results[:100]):
-        # Grab original row for reasoning
-        row = df[df['candidate_id'] == cid].iloc[0]
+    print("\nLoading Qwen-4B (GGUF) via llama.cpp for JSON Reasoning...")
+    from huggingface_hub import hf_hub_download
+    from llama_cpp import Llama
+    
+    try:
+        # We attempt to download Qwen2.5-3B (which is roughly the 4B equivalent you mentioned)
+        model_path = hf_hub_download(repo_id="Qwen/Qwen2.5-3B-Instruct-GGUF", filename="qwen2.5-3b-instruct-q4_k_m.gguf")
         
-        # Build a reasoning string similar to the sample submission
-        try:
-            # We try to extract their latest job title from the career history JSON
-            # But since we flattened it, we can just grab their trust score and YOE from tabular
-            yoe = row['num_jobs'] * 2 # Rough estimation if real YOE column is missing, or we use Trust Score
-            reasoning = f"Matched via Hybrid Cross-Encoder; Trust Score: {row['trust_score']:.2f}; Jobs on Profile: {row['num_jobs']}"
-        except:
-            reasoning = f"Matched via Hybrid Cross-Encoder; Trust Score: {row['trust_score']:.2f}"
+        # Load Llama with a small context window to save memory on CPU
+        llm = Llama(model_path=model_path, n_ctx=1024, n_threads=8, verbose=False)
+        
+        # Define strict JSON grammar
+        grammar = r'''
+        root ::= "{" ws "\"score\":" ws [1-9] [0]? "," ws "\"reasoning\":" ws string "}"
+        string ::= "\"" ([^"\\] | "\\" (["\\/bfnrt] | "u" [0-9a-fA-F]{4}))* "\""
+        ws ::= [ \t\n]*
+        '''
+        from llama_cpp import LlamaGrammar
+        json_grammar = LlamaGrammar.from_string(grammar)
+        
+        print(f"Starting Generation for Top 100 Candidates (Budget: {remaining_time:.2f}s)...")
             
-        submission_data.append({
-            "candidate_id": cid,
-            "rank": rank + 1,
-            "score": f"{score:.4f}",
-            "reasoning": reasoning
-        })
-        
+        for rank, (cid, score) in enumerate(final_results[:100]):
+            row = df[df['candidate_id'] == cid].iloc[0]
+            
+            # Construct fact-based prompt
+            prompt = f"""<|im_start|>system
+You are an expert technical recruiter evaluating candidates. Output valid JSON containing a 'score' (1-10) and a concise, 1-sentence 'reasoning' explaining exactly why this candidate fits the role based on true facts.<|im_end|>
+<|im_start|>user
+Candidate Facts: Total YOE: {row.get('num_jobs', 0)*2}. Trust Score: {row['trust_score']:.2f}.
+Career: {row['text_career'][:300]}...
+Skills: {row['text_skills'][:200]}...
+Why are they a good fit?<|im_end|>
+<|im_start|>assistant
+"""
+            t_start = time.time()
+            output = llm(prompt, max_tokens=60, grammar=json_grammar, temperature=0.1)
+            t_end = time.time()
+            
+            # Parse JSON output string safely
+            gen_text = output['choices'][0]['text']
+            import json
+            try:
+                res_dict = json.loads(gen_text)
+                reasoning_text = res_dict.get('reasoning', gen_text)
+            except:
+                reasoning_text = gen_text
+            
+            print(f"[{t_end-t_start:.2f}s] Rank {rank+1}: {reasoning_text}")
+            
+            submission_data.append({
+                "candidate_id": cid,
+                "rank": rank + 1,
+                "score": f"{score:.4f}",
+                "reasoning": reasoning_text
+            })
+    except Exception as e:
+        print(f"LLM Loading Failed: {e}. Falling back to default reasoning.")
+        for rank, (cid, score) in enumerate(final_results[:100]):
+            submission_data.append({"candidate_id": cid, "rank": rank + 1, "score": f"{score:.4f}", "reasoning": "Strong match."})
+
     sub_df = pd.DataFrame(submission_data)
     sub_df.to_csv("submission.csv", index=False)
-    print("Successfully saved: submission.csv (Top 100 Candidates) inside Trail_6 folder")
+    
+    total_time = time.time() - GLOBAL_T0
+    print(f"\nSuccessfully saved: submission.csv (Top 100 Candidates) inside Trail_7 folder")
+    print(f"--- SANDBOX FINISHED in {total_time:.2f}s ---")
     
     print("\n=== FINAL TOP 10 AFTER CROSS-ENCODER ===")
     for rank, (cid, ce_score) in enumerate(final_results[:10]):

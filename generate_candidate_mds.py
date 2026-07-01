@@ -52,7 +52,7 @@ def generate_mds(trail_csv, jsonl_path="candidates.jsonl", out_dir="candidates")
         
         # Redrob Signals (The most important for Trust Score)
         sig = cand.get('redrob_signals', {})
-        md_content += "## 📊 Redrob Signals (Trust Data)\n"
+        md_content += "## Redrob Signals (Trust Data)\n"
         md_content += f"- **Profile Completeness**: {sig.get('profile_completeness_score', 'N/A')}%\n"
         md_content += f"- **Avg Response Time**: {sig.get('avg_response_time_hours', 'N/A')} hours\n"
         md_content += f"- **Open to Work**: {sig.get('open_to_work_flag', False)}\n"
@@ -64,28 +64,30 @@ def generate_mds(trail_csv, jsonl_path="candidates.jsonl", out_dir="candidates")
         
         # Profile
         prof = cand.get('profile', {})
-        md_content += "## 👤 Profile & Logistics\n"
+        md_content += "## Profile & Logistics\n"
         md_content += f"- **Location**: {prof.get('location', 'N/A')}, {prof.get('country', 'N/A')}\n"
         md_content += f"- **Total YOE**: {prof.get('years_of_experience', 'N/A')}\n"
         
-        prefs = prof.get('preferences', {})
-        sal = prefs.get('expected_salary_range_inr_lpa', {})
+        sal = sig.get('expected_salary_range_inr_lpa', {})
         md_content += f"- **Expected Salary**: {sal.get('min', 0)} - {sal.get('max', 0)} LPA\n"
-        md_content += f"- **Notice Period**: {prefs.get('notice_period_days', 'N/A')} days\n"
-        md_content += f"- **Work Mode**: {prefs.get('preferred_work_mode', 'N/A')}\n"
-        md_content += f"- **Willing to Relocate**: {prefs.get('willing_to_relocate', False)}\n\n"
+        md_content += f"- **Notice Period**: {sig.get('notice_period_days', 'N/A')} days\n"
+        md_content += f"- **Work Mode**: {sig.get('preferred_work_mode', 'N/A')}\n"
+        md_content += f"- **Willing to Relocate**: {sig.get('willing_to_relocate', False)}\n\n"
         
         # Career
-        md_content += "## 💼 Career History\n"
+        md_content += "## Career History\n"
         for job in cand.get('career_history', []):
+            sd = job.get('start_date', 'Unknown')
+            ed = job.get('end_date', 'Present') if job.get('end_date') else 'Present'
+            
             md_content += f"### {job.get('title', 'N/A')} at {job.get('company', 'N/A')}\n"
             md_content += f"- **Industry**: {job.get('industry', 'N/A')}\n"
-            md_content += f"- **Duration**: {job.get('duration_months', 'N/A')} months\n"
+            md_content += f"- **Duration**: {sd} to {ed} ({job.get('duration_months', 'N/A')} months)\n"
             md_content += f"- **Current Role**: {job.get('is_current', False)}\n"
             md_content += f"- **Description**: {job.get('description', 'N/A')}\n\n"
             
         # Education
-        md_content += "## 🎓 Education\n"
+        md_content += "## Education\n"
         for edu in cand.get('education', []):
             md_content += f"### {edu.get('degree', 'N/A')} in {edu.get('field_of_study', 'N/A')}\n"
             md_content += f"- **Institution**: {edu.get('institution', 'N/A')} (Tier: {edu.get('tier', 'N/A')})\n"
@@ -93,7 +95,7 @@ def generate_mds(trail_csv, jsonl_path="candidates.jsonl", out_dir="candidates")
             md_content += f"- **Years**: {edu.get('start_year', 'N/A')} - {edu.get('end_year', 'N/A')}\n\n"
             
         # Skills
-        md_content += "## 🛠 Skills\n"
+        md_content += "## Skills\n"
         for skill in cand.get('skills', []):
             md_content += f"- **{skill.get('name', 'N/A')}** | {skill.get('proficiency', 'N/A')} | Endorsements: {skill.get('endorsements', 0)} | Months: {skill.get('duration_months', 0)}\n"
             
@@ -102,7 +104,7 @@ def generate_mds(trail_csv, jsonl_path="candidates.jsonl", out_dir="candidates")
             
         print(f"Generated -> {filepath}")
         
-    print("\n✅ All requested Markdown files have been successfully generated in the 'candidates/' folder!")
+    print("\nAll requested Markdown files have been successfully generated in the 'candidates/' folder!")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Generate Markdown profiles for Top 10 and Bottom 10 candidates of a Trail.")
