@@ -1,47 +1,102 @@
-team_name: "Antigravity AI"
+# Redrob Hackathon — Submission Metadata Template
+#
+# Copy this file to your repo root as `submission_metadata.yaml` and fill it in.
+# The fields here should match what you submit via the portal at upload time.
+# Stage 3 review uses this file to verify your portal metadata.
+
+# ============================================================================
+# Team identity
+# ============================================================================
+team_name: "Aura Farmers"  # Used in leaderboard and announcements
 
 primary_contact:
-  name: "Umar"
-  email: "umar@example.com"
-  phone: "+91-0000000000"
+  name: "Mohammed Umar F"
+  email: "mdumr4@gmail.com"   # Used for all organizer communication
+  phone: "+91-8892574137"        # Used for top-50 / top-10 outreach
 
 team_members:
-  - name: "Umar"
-    email: "umar@example.com"
-    role: "AI Engineer"
+  - name: "Mohammed Umar F"
+    email: "mdumr4@gmail.com"
+    role: "Team Lead, Backend Engineer"          # Optional, e.g. "Team Lead", "Backend", "Data"
+  - name: "Soujanya K Hegde "
+    email: "shegde092@gmail.com"
+    role: "System Engineer, Backend Engineer"
+  # Add more members as needed; solo participants list just one member
 
-github_repo: "https://github.com/umar/redrob-ai-challenge"
+# ============================================================================
+# Code and reproducibility
+# ============================================================================
+github_repo: "https://github.com/mdumr4/resume-ranker"
+# Required. Must be reachable. Private repos OK if you can grant organizer
+# access at Stage 3 (the email to add will be communicated then).
 
-sandbox_link: "See colab_instructions.md or kaggle_instructions.md in the repo for the full reproducible sandbox."
+sandbox_link: "https://colab.research.google.com/github/mdumr4/resume-ranker/blob/main/sandbox/run_pipeline_colab.ipynb"
+# Required. A working hosted environment where the ranker can be run on a small
+# candidate sample. See Section 10.5 of submission_spec.md for acceptable
+# platforms (HuggingFace Spaces, Streamlit Cloud, Replit, Colab, Docker, Binder).
 
-reproduce_command: "powershell -ExecutionPolicy Bypass -File .\run_pipeline.ps1"
+reproduce_command: "python rank.py --candidates ./candidates.jsonl --out ./submission.csv"
+# The single command that produces submission.csv from candidates.jsonl.
+# Should run end-to-end within 5 minutes on CPU with 16GB RAM and no network.
 
+# ============================================================================
+# Compute environment
+# ============================================================================
 compute:
-  platform: "Windows Desktop"
-  cpu_cores: 16
-  ram_gb: 16
-  python_version: "3.12"
-  os: "Windows 11"
-  uses_gpu_for_inference: false
-  has_network_during_ranking: false
-  pre_computation_required: true
-  pre_computation_time_minutes: 15
+  platform: "MacBook Pro M2"                    # Or: "AWS EC2 c5.4xlarge", "Local Linux box", etc.
+  cpu_cores: 8                                  # Number of CPU cores used
+  ram_gb: 16                                    # Available RAM in GB
+  python_version: "3.11.4"                      # python --version
+  os: "macOS 14.2"                              # Or "Ubuntu 22.04 LTS", etc.
+  uses_gpu_for_inference: false                 # Must be false — see compute constraints
+  has_network_during_ranking: false             # Must be false — no API calls during ranking
+  pre_computation_required: true                # true if you pre-compute embeddings or train models offline
+  pre_computation_time_minutes: 15              # Approximate, if applicable
 
+# ============================================================================
+# AI tools declaration
+# ============================================================================
+# Transparency only — declared use is NOT penalized. Be honest. Stage 5 interview
+# may verify these declarations against your code; declarations that contradict
+# your code or your interview are flagged.
 ai_tools_used:
-  - "Antigravity AI Agent (Gemini)"
+  - "Claude"        #  for architecture discussion, code review
+  - "antigravity" #  for autocomplete
+  - "Gemini"      # ppt presentation polishing
+  # Other options: "ChatGPT", "Cursor", "Gemini", "Codeium", "Other", "None"
 
 ai_usage_summary: |
-  Used the Antigravity AI Agent extensively for architectural design, code generation, ONNX INT8 quantization, and iterative pipeline optimization to fit within the strict 5-minute CPU constraint.
 
+  - ""Used Claude for system architecture design and code review, Gemini
+      for slide copy optimization and presentation polishing, and
+      antigravity for inline code autocomplete.""
+
+# ============================================================================
+# Approach summary (optional but recommended)
+# ============================================================================
 methodology_summary: |
-  A 3-Stage Pipeline executed entirely locally on a CPU.
-  - Stage 1: Hybrid Search. We run FAISS Dense Vector Search (Qwen Embeddings) combined with SPLADE Sparse Search, fused using RRF to filter all 100,000 candidates down to a Top 100 list in ~10 seconds.
-  - Stage 2: Semantic Re-Ranking. We run the Top 50 candidates through an INT8-quantized BGE-M3 Cross-Encoder for deep semantic scoring in ~115 seconds.
-  - Stage 3: LLM Reasoning. We execute Qwen2.5-0.5B-Instruct locally via continuous batching in llama-server to generate 100 rationales simultaneously in ~145 seconds. Total runtime is ~5.1 minutes.
+   "Our candidate ranking pipeline uses a hybrid retrieval and reranking architecture
+    optimized for CPU-only inference. First, dense semantic retrieval using Qwen
+    embeddings and sparse lexical retrieval using SPLADE are combined through
+    Reciprocal Rank Fusion to shortlist the top candidates from a large pool.
 
+    Candidate quality is improved using a trust scoring system based on profile
+    verification, engagement signals, and career gap analysis, helping reduce noisy
+    or suspicious profiles.
+
+    The shortlisted candidates are then re-ranked using a cross-encoder that
+    evaluates both technical skill match and logistics compatibility. Final ranking
+    combines these scores to produce accurate candidate ordering.
+
+    The system also generates concise reasoning for each ranked candidate and runs
+    fully offline on CPU within the 5-minute hackathon constraint".
+
+# ============================================================================
+# Declarations
+# ============================================================================
 declarations:
-  read_submission_spec: true
-  code_is_original_work: true
-  no_collusion: true
-  honeypot_check_done: true
-  reproduction_tested: true
+  read_submission_spec: true        # I have read submission_spec.md in full
+  code_is_original_work: true       # My code is my team's original work (using AI as a tool is fine)
+  no_collusion: true                # I have not coordinated my submission with other teams
+  honeypot_check_done: true       # OPTIONAL — set true if you explicitly checked for honeypots in your ranking
+  reproduction_tested: true         # I have tested that my reproduce_command runs end-to-end
