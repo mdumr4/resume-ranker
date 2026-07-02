@@ -2,139 +2,63 @@
 
 Welcome to our submission for the **Redrob Talent Intelligence Hackathon**.
 
-This repository contains an ultra-optimized, strictly CPU-bound ranking pipeline designed to process 100,000 candidate profiles, dynamically calculate trust and timeline career gap penalties, re-rank them semantically, and generate natural language reasoning rationales—all running fully locally on a CPU in **~3.6 minutes** (safely within the strict 5-minute hackathon constraint).
+This repository contains an ultra-optimized, CPU-bound candidate discovery and ranking pipeline. It retrieves and re-ranks candidate profiles from a pool of **100,000 resumes**, applies dynamic behavioral/career gap penalties, and generates natural language reasoning rationales. The entire end-to-end process runs fully locally on a CPU in **~2.3 minutes** (well under the strict 5-minute hackathon constraint).
 
 ---
 
-## 🚀 Restructured Codebase Layout
+## 🚀 One-Command Setup
 
-To comply with the Stage 3 Sandboxed Reproduction and Stage 5 manual review guidelines, we have restructured all core execution modules, pre-computed indices, and models into a self-contained **`sandbox/`** directory.
-
-```text
-├── sandbox/                         # Core execution sandbox
-│   ├── index/                       # Pre-computed indices (FAISS binary, SPLADE NPZ, Parquet features)
-│   ├── models/                      # Local models (Qwen Embedding, SPLADE ONNX, Qwen2.5 GGUF)
-│   ├── src/
-│   │   └── optimize_rank.py         # The core hybrid retrieval & two-phase re-ranking script
-│   ├── run_pipeline_colab.ipynb     # The Google Colab replication notebook
-│   ├── explain.md                   # Technical Deep-Dive & Architecture Whitepaper
-│   ├── submission_metadata.yaml     # Hackathon portal metadata
-│   ├── pyproject.toml & uv.lock     # Sandbox package manager and exact dependency lock file
-│   └── validate_submission.py       # Submission validator script
-│
-├── context/                         # Hackathon specification documents and specifications
-└── Trails/                          # Experimental history and trails
-```
-
----
-
-## 💻 Colab Reproduction Instructions (Recommended)
-
-Our sandbox runs end-to-end on **Google Colab** on standard CPU runtimes in under 4 minutes.
-
-### Steps to Reproduce:
-
-1. Upload the `sandbox/` folder to your Google Drive.
-2. Open **`run_pipeline_colab.ipynb`** in Google Colab.
-3. Execute the cells in order:
-   * **Cell 1 & 2:** Mount Google Drive and navigate to `/content/drive/MyDrive/.../sandbox`.
-   * **Cell 4:** Install required dependencies (`pip install sentence-transformers faiss-cpu onnxruntime pandas numpy scipy transformers llama-cpp-python`).
-   * **Cell 5:** Fetches the correct Ubuntu Linux x64 build of `llama-server` and dependencies on-the-fly and marks it executable.
-   * **Cell 6:** Starts `llama-server` in the background and runs the pipeline (`python src/optimize_rank.py`).
-4. The final formatted output will be saved as **`sandbox/submission.csv`** containing exact ranks, real model scores, and two-sentence reasoning texts.
-
----
-
-## 🧪 Submission Validation
-
-Verify the formatting of the generated `submisC:\Users\conqu\Desktop\Umar\Workspace\India Runs\resume-ranker>python rank.py --candidates ./candidates.jsonl --out ./submission.csv
-`
-
-`Starting llama-server in the background...
-`
-
-`Error starting llama-server: [WinError 2] The system cannot find the file specified. Check path or permissions.
-`
-
-`
-`
-
-`C:\Users\conqu\Desktop\Umar\Workspace\India Runs\resume-ranker>python rank.py --candidates ./candidates.jsonl --out ./submission.csv
-`
-
-`Starting llama-server in the background...
-`
-
-`Waiting for llama-server to be ready...
-`
-
-`Server is ready! Running the pipeline...
-`
-
-`Traceback (most recent call last):
-`
-
-`  File "C:\Users\conqu\Desktop\Umar\Workspace\India Runs\resume-ranker\sandbox\src\optimize_rank.py", line 20, in <module>
-`
-
-`    import faiss
-`
-
-`ModuleNotFoundError: No module named 'faiss'
-`
-
-`Pipeline finished. Terminating llama-server...
-`
-
-`Done.
-`
-
-`Traceback (most recent call last):
-`
-
-`  File "C:\Users\conqu\Desktop\Umar\Workspace\India Runs\resume-ranker\rank.py", line 85, in <module>
-`
-
-`    main()
-`
-
-`    ~~~~^^
-`
-
-`  File "C:\Users\conqu\Desktop\Umar\Workspace\India Runs\resume-ranker\rank.py", line 75, in main
-`
-
-`    subprocess.run([sys.executable, "-u", "src/optimize_rank.py", "--out", out_path], check=True)
-`
-
-`    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-`
-
-`  File "C:\Users\conqu\AppData\Local\Programs\Python\Python313\Lib\subprocess.py", line 579, in run
-`
-
-`    raise CalledProcessError(retcode, process.args,
-`
-
-`                             output=stdout, stderr=stderr)
-`
-
-`subprocess.CalledProcessError: Command '['C:\\Users\\conqu\\AppData\\Local\\Programs\\Python\\Python313\\python.exe', '-u', 'src/optimize_rank.py', '--out', 'C:\\Users\\conqu\\Desktop\\Umar\\Workspace\\India Runs\\resume-ranker\\submission.csv']' returned non-zero exit status 1.
-`
-
-`
-`
-
-`C:\Users\conqu\Desktop\Umar\Workspace\India Runs\resume-ranker>sion.csv` inside the sandbox using:
+To run replication locally, you must first install the python packages and download the pre-computed indexes and local model weights. You can accomplish this in a **single command** (this pulls the pre-packaged indices and weights directly from our Hugging Face repository):
 
 ```bash
-python sandbox/validate_submission.py --submission sandbox/submission.csv
+pip install huggingface_hub sentence-transformers faiss-cpu onnxruntime pandas numpy scipy transformers && huggingface-cli download mdumr4/redrob --local-dir . --local-dir-use-symlinks False
 ```
 
-This utility ensures:
+---
 
-* Exactly 100 rows.
-* Ranks start at 1.
-* No duplicate candidate IDs.
-* Scores are strictly monotonically decreasing with no ties.
-* Output is formatted correctly.
+## 💻 Stage 3 Reproduction Command
+
+Once the setup is complete, execute the official reproduction command from the **root of the repository** to run the ranking and generate the output:
+
+```bash
+python rank.py --candidates ./candidates.jsonl --out ./submission.csv
+```
+
+### ⏱️ Expected Execution Profile (CPU Only)
+* **Stage 0 (Engine Loading):** **0.2s** (Loads cross-encoder weights and pre-computed JD vectors).
+* **Stage 1 (Hybrid Retrieval):** **1.88s** (FAISS dense search + SPLADE sparse search + RRF fusion).
+* **Stage 2 (Two-Part Reranking):** **14s** (Evaluates top 100 candidates on Tech/Logistics weighted fusion).
+* **Stage 3 (LLM Reasoning):** **111s** (Batch-generates 100 candidate rationales with shared prompt caching).
+* **Total Runtime:** **~135s (~2.3 minutes)**.
+
+---
+
+## 📓 Standalone Google Colab Run
+
+If you want to run the pipeline in the cloud, we have provided a **standalone Google Colab notebook** in the repository:
+👉 **[sandbox/run_pipeline_colab.ipynb](sandbox/run_pipeline_colab.ipynb)**
+
+### How to Run:
+1. Open [Google Colab](https://colab.research.google.com).
+2. Go to the **GitHub** tab and paste your repository URL: `https://github.com/mdumr4/resume-ranker`.
+3. Select and open `sandbox/run_pipeline_colab.ipynb`.
+4. Click **Runtime** -> **Run All**.
+5. The notebook will clone the repository, download all required models/indexes dynamically, boot `llama-server` in the background, run the pipeline, and validate the output automatically.
+
+---
+
+## 📐 Architecture & Optimization Highlights
+
+1. **Pre-computed Job Description (JD) Vectors:**
+   * Since the target Job Description is static, we pre-computed its dense query representation and sparse SPLADE query representation. 
+   * This removes the need to load the heavy Qwen-Embedding and SPLADE-ONNX models at runtime, saving **~1.5 GB of RAM** and reducing loading time by **98%** (Stage 0 loader drops from 13.2s to 0.2s).
+
+2. **Two-Part Cross-Encoder Reranker:**
+   * We run a two-phase evaluation using `ms-marco-MiniLM-L-12-v2`:
+     * **Tech Match:** Evaluates candidate skills & career history against Tech requirements.
+     * **Logistics Match:** Evaluates candidate education, notice period, location, and profiles.
+     * **Additive Sigmoid Fusion:** Normalizes logits via Sigmoid and fuses them: $\text{Score} = 0.70 \times \text{prob\_tech} + 0.30 \times \text{prob\_logistics}$.
+
+3. **High-Throughput continuous LLM Batching:**
+   * Starts a background `llama-server` running `Qwen2.5-0.5B-Instruct` (Q4_K_M GGUF).
+   * Spawns 32 parallel threads to dispatch prompt completions simultaneously. The server dynamically batches the requests and utilizes shared prompt caching, generating all 100 rationales in under 2 minutes on standard CPU threads.
