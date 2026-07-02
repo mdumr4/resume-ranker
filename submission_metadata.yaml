@@ -1,0 +1,47 @@
+team_name: "Antigravity AI"
+
+primary_contact:
+  name: "Umar"
+  email: "umar@example.com"
+  phone: "+91-0000000000"
+
+team_members:
+  - name: "Umar"
+    email: "umar@example.com"
+    role: "AI Engineer"
+
+github_repo: "https://github.com/umar/redrob-ai-challenge"
+
+sandbox_link: "See colab_instructions.md or kaggle_instructions.md in the repo for the full reproducible sandbox."
+
+reproduce_command: "powershell -ExecutionPolicy Bypass -File .\run_pipeline.ps1"
+
+compute:
+  platform: "Windows Desktop"
+  cpu_cores: 16
+  ram_gb: 16
+  python_version: "3.12"
+  os: "Windows 11"
+  uses_gpu_for_inference: false
+  has_network_during_ranking: false
+  pre_computation_required: true
+  pre_computation_time_minutes: 15
+
+ai_tools_used:
+  - "Antigravity AI Agent (Gemini)"
+
+ai_usage_summary: |
+  Used the Antigravity AI Agent extensively for architectural design, code generation, ONNX INT8 quantization, and iterative pipeline optimization to fit within the strict 5-minute CPU constraint.
+
+methodology_summary: |
+  A 3-Stage Pipeline executed entirely locally on a CPU.
+  - Stage 1: Hybrid Search. We run FAISS Dense Vector Search (Qwen Embeddings) combined with SPLADE Sparse Search, fused using RRF to filter all 100,000 candidates down to a Top 100 list in ~10 seconds.
+  - Stage 2: Semantic Re-Ranking. We run the Top 50 candidates through an INT8-quantized BGE-M3 Cross-Encoder for deep semantic scoring in ~115 seconds.
+  - Stage 3: LLM Reasoning. We execute Qwen2.5-0.5B-Instruct locally via continuous batching in llama-server to generate 100 rationales simultaneously in ~145 seconds. Total runtime is ~5.1 minutes.
+
+declarations:
+  read_submission_spec: true
+  code_is_original_work: true
+  no_collusion: true
+  honeypot_check_done: true
+  reproduction_tested: true
