@@ -43,15 +43,15 @@ reproduce_command: "python rank.py --candidates ./candidates.jsonl --out ./submi
 # Compute environment
 # ============================================================================
 compute:
-  platform: "MacBook Pro M2"                    # Or: "AWS EC2 c5.4xlarge", "Local Linux box", etc.
+  platform: "Asus Zenbook 14 OLED"                    # Or: "AWS EC2 c5.4xlarge", "Local Linux box", etc.
   cpu_cores: 8                                  # Number of CPU cores used
   ram_gb: 16                                    # Available RAM in GB
   python_version: "3.11.4"                      # python --version
-  os: "macOS 14.2"                              # Or "Ubuntu 22.04 LTS", etc.
+  os: "windows"                              # Or "Ubuntu 22.04 LTS", etc.
   uses_gpu_for_inference: false                 # Must be false — see compute constraints
   has_network_during_ranking: false             # Must be false — no API calls during ranking
   pre_computation_required: true                # true if you pre-compute embeddings or train models offline
-  pre_computation_time_minutes: 15              # Approximate, if applicable
+  pre_computation_time_minutes: 60              # Approximate, if applicable
 
 # ============================================================================
 # AI tools declaration

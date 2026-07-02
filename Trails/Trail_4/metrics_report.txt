@@ -1,7 +1,0 @@
-=== Trail 4 Resource Profile (Hybrid + Sectional L-12-v2) ===
-[Artifact Loading] Time: 2.08s | Mem Change: +874.04 MB | Peak Mem: 1300.72 MB
-[Hybrid Retrieval (RRF)] Time: 2.58s | Mem Change: +358.08 MB | Peak Mem: 1658.80 MB
-[Cross-Encoder Inference (L-12-v2)] Time: 24334.67s | Mem Change: -1051.57 MB | Peak Mem: 599.23 MB
-[Math Scoring & Sorting] Time: 0.26s | Mem Change: +26.76 MB | Peak Mem: 623.64 MB
-
-Total Pipeline Execution: 24340.53 seconds
