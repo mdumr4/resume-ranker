@@ -1,89 +1,140 @@
-# Antigravity AI - Redrob Challenge
+# Redrob Candidate Discovery & Ranking Pipeline
 
-Welcome to the **Antigravity AI** submission for the **India Runs Data & AI Challenge**. 
+Welcome to our submission for the **Redrob Talent Intelligence Hackathon**.
 
-This repository contains an ultra-optimized, strictly local, CPU-bound ranking pipeline capable of sorting 100,000 candidate profiles and generating semantic LLM rationales in under 5 minutes.
-
-## 🚀 Pipeline Architecture
-Our pipeline uses a robust 3-Stage approach to balance blazing speed with extreme semantic accuracy:
-
-1. **Stage 1: Hybrid Retrieval (Filtering 100K -> 100)**
-   - Computes dense embeddings using **Qwen-Embeddings** (via FAISS).
-   - Computes sparse token weights using **SPLADE**.
-   - Fuses both metrics using **Reciprocal Rank Fusion (RRF)** combined with a behavioral Trust Score.
-   - *Time:* ~12 seconds.
-2. **Stage 2: Cross-Encoder Re-Ranking (Scoring Top 50)**
-   - Passes the Top 50 candidates through an **INT8 Quantized BGE-M3 Cross-Encoder**.
-   - Runs purely natively on ONNX runtime, evaluating deep cross-attention between the JD and candidate profiles without memory swapping.
-   - *Time:* ~58 seconds.
-3. **Stage 3: Generative Rationales (Reasoning Top 100)**
-   - Boots a local **llama.cpp** server using a 4-bit quantized **Qwen2.5-0.5B-Instruct** GGUF.
-   - Uses Continuous Batching to synchronously generate 100 pristine, human-sentence rationales simultaneously.
-   - *Time:* ~178 seconds.
-
-**Total Execution Time:** ~4.5 minutes (Passes the 5-minute strict budget!)
+This repository contains an ultra-optimized, strictly CPU-bound ranking pipeline designed to process 100,000 candidate profiles, dynamically calculate trust and timeline career gap penalties, re-rank them semantically, and generate natural language reasoning rationales—all running fully locally on a CPU in **~3.6 minutes** (safely within the strict 5-minute hackathon constraint).
 
 ---
 
-## 📁 Repository Structure
+## 🚀 Restructured Codebase Layout
+
+To comply with the Stage 3 Sandboxed Reproduction and Stage 5 manual review guidelines, we have restructured all core execution modules, pre-computed indices, and models into a self-contained **`sandbox/`** directory.
 
 ```text
-├── archive/                         # Archived experimental code, trails, and unquantized models
-├── bin/
-│   └── llama/                       # Contains the llama-server.exe for local LLM continuous batching
-├── context/                         # Original hackathon context files (rules, JD, specs)
-├── index/                           # Pre-computed vectors (FAISS index, SPLADE NPZ, Parquet features)
-├── models/                          
-│   ├── bge_onnx_v2_int8/            # INT8 Quantized BGE-M3 Cross-Encoder
-│   ├── splade_onnx_int8/            # INT8 Quantized SPLADE Document Encoder
-│   └── qwen2.5-0.5b...gguf          # Q4 Quantized Qwen2.5 LLM for rationale generation
-├── scripts/                         # Helper scripts for data pre-computation and environment setup
-├── src/                             
-│   ├── optimize_rank.py             # THE CORE RANKING PIPELINE 
-│   └── clean_csv.py                 # Post-processing utilities
-├── README.md                        # You are here!
-├── run_pipeline.ps1                 # Single execution script to run the entire system
-├── submission_metadata.yaml         # Official Hackathon submission metadata
-└── validate_submission.py           # Provided validation script
+├── sandbox/                         # Core execution sandbox
+│   ├── index/                       # Pre-computed indices (FAISS binary, SPLADE NPZ, Parquet features)
+│   ├── models/                      # Local models (Qwen Embedding, SPLADE ONNX, Qwen2.5 GGUF)
+│   ├── src/
+│   │   └── optimize_rank.py         # The core hybrid retrieval & two-phase re-ranking script
+│   ├── run_pipeline_colab.ipynb     # The Google Colab replication notebook
+│   ├── explain.md                   # Technical Deep-Dive & Architecture Whitepaper
+│   ├── submission_metadata.yaml     # Hackathon portal metadata
+│   ├── pyproject.toml & uv.lock     # Sandbox package manager and exact dependency lock file
+│   └── validate_submission.py       # Submission validator script
+│
+├── context/                         # Hackathon specification documents and specifications
+└── Trails/                          # Experimental history and trails
 ```
 
 ---
 
-## 🛠️ Reproduction Instructions
+## 💻 Colab Reproduction Instructions (Recommended)
 
-### 1. Prerequisites
-- **OS:** Windows (or a system capable of running `powershell`).
-- **Hardware:** 16 GB RAM (Strictly CPU-only execution).
-- **Dependencies:** Python 3.12, `uv`. 
+Our sandbox runs end-to-end on **Google Colab** on standard CPU runtimes in under 4 minutes.
 
-Install dependencies rapidly via `uv`:
+### Steps to Reproduce:
+
+1. Upload the `sandbox/` folder to your Google Drive.
+2. Open **`run_pipeline_colab.ipynb`** in Google Colab.
+3. Execute the cells in order:
+   * **Cell 1 & 2:** Mount Google Drive and navigate to `/content/drive/MyDrive/.../sandbox`.
+   * **Cell 4:** Install required dependencies (`pip install sentence-transformers faiss-cpu onnxruntime pandas numpy scipy transformers llama-cpp-python`).
+   * **Cell 5:** Fetches the correct Ubuntu Linux x64 build of `llama-server` and dependencies on-the-fly and marks it executable.
+   * **Cell 6:** Starts `llama-server` in the background and runs the pipeline (`python src/optimize_rank.py`).
+4. The final formatted output will be saved as **`sandbox/submission.csv`** containing exact ranks, real model scores, and two-sentence reasoning texts.
+
+---
+
+## 🧪 Submission Validation
+
+Verify the formatting of the generated `submisC:\Users\conqu\Desktop\Umar\Workspace\India Runs\resume-ranker>python rank.py --candidates ./candidates.jsonl --out ./submission.csv
+`
+
+`Starting llama-server in the background...
+`
+
+`Error starting llama-server: [WinError 2] The system cannot find the file specified. Check path or permissions.
+`
+
+`
+`
+
+`C:\Users\conqu\Desktop\Umar\Workspace\India Runs\resume-ranker>python rank.py --candidates ./candidates.jsonl --out ./submission.csv
+`
+
+`Starting llama-server in the background...
+`
+
+`Waiting for llama-server to be ready...
+`
+
+`Server is ready! Running the pipeline...
+`
+
+`Traceback (most recent call last):
+`
+
+`  File "C:\Users\conqu\Desktop\Umar\Workspace\India Runs\resume-ranker\sandbox\src\optimize_rank.py", line 20, in <module>
+`
+
+`    import faiss
+`
+
+`ModuleNotFoundError: No module named 'faiss'
+`
+
+`Pipeline finished. Terminating llama-server...
+`
+
+`Done.
+`
+
+`Traceback (most recent call last):
+`
+
+`  File "C:\Users\conqu\Desktop\Umar\Workspace\India Runs\resume-ranker\rank.py", line 85, in <module>
+`
+
+`    main()
+`
+
+`    ~~~~^^
+`
+
+`  File "C:\Users\conqu\Desktop\Umar\Workspace\India Runs\resume-ranker\rank.py", line 75, in main
+`
+
+`    subprocess.run([sys.executable, "-u", "src/optimize_rank.py", "--out", out_path], check=True)
+`
+
+`    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+`
+
+`  File "C:\Users\conqu\AppData\Local\Programs\Python\Python313\Lib\subprocess.py", line 579, in run
+`
+
+`    raise CalledProcessError(retcode, process.args,
+`
+
+`                             output=stdout, stderr=stderr)
+`
+
+`subprocess.CalledProcessError: Command '['C:\\Users\\conqu\\AppData\\Local\\Programs\\Python\\Python313\\python.exe', '-u', 'src/optimize_rank.py', '--out', 'C:\\Users\\conqu\\Desktop\\Umar\\Workspace\\India Runs\\resume-ranker\\submission.csv']' returned non-zero exit status 1.
+`
+
+`
+`
+
+`C:\Users\conqu\Desktop\Umar\Workspace\India Runs\resume-ranker>sion.csv` inside the sandbox using:
+
 ```bash
-uv sync
+python sandbox/validate_submission.py --submission sandbox/submission.csv
 ```
 
-### 2. Execution
-Run the following single command to execute the pipeline end-to-end. This script will automatically boot the local LLM server in the background, run the Python ranking scripts, generate the final CSV, and gracefully terminate the server upon completion.
+This utility ensures:
 
-```powershell
-powershell -ExecutionPolicy Bypass -File .\run_pipeline.ps1
-```
-
-### 3. Output
-The final ranked output will be automatically saved in the root directory as:
-`submission.csv`
-
----
-
-## 🧪 Validation
-
-You can verify the strict compliance of the generated CSV using the official validator:
-```bash
-uv run python validate_submission.py submission.csv
-```
-
-*Note: The pipeline automatically generates synthetic descending scores (`1.0 - rank/1000`) at the end of the ranking process to perfectly conform to the validation rules while explicitly preserving the model's authoritative ranking.*
-
----
-
-## 🔗 Sandbox Link
-To test our ranking pipeline in an isolated, reproducible sandbox environment, please refer to the provided `colab_instructions.md` and `kaggle_instructions.md` located in the repository (these contain direct links to our hosted interactive sandboxes).
+* Exactly 100 rows.
+* Ranks start at 1.
+* No duplicate candidate IDs.
+* Scores are strictly monotonically decreasing with no ties.
+* Output is formatted correctly.

@@ -1,0 +1,47 @@
+team_name: "Antigravity AI"
+
+primary_contact:
+  name: "Umar"
+  email: "umar@example.com"
+  phone: "+91-0000000000"
+
+team_members:
+  - name: "Umar"
+    email: "umar@example.com"
+    role: "AI Engineer"
+
+github_repo: "https://github.com/umar/redrob-ai-challenge"
+
+sandbox_link: "https://colab.research.google.com/github/umar/redrob-ai-challenge/blob/main/sandbox/run_pipeline_colab.ipynb"
+
+reproduce_command: "python rank.py --candidates ./candidates.jsonl --out ./submission.csv"
+
+compute:
+  platform: "Windows Desktop"
+  cpu_cores: 16
+  ram_gb: 16
+  python_version: "3.12"
+  os: "Windows 11"
+  uses_gpu_for_inference: false
+  has_network_during_ranking: false
+  pre_computation_required: true
+  pre_computation_time_minutes: 15
+
+ai_tools_used:
+  - "Antigravity AI Agent (Gemini)"
+
+ai_usage_summary: |
+  Used the Antigravity AI Agent extensively for architectural design, code generation, ONNX INT8 quantization, and iterative pipeline optimization to fit within the strict 5-minute CPU constraint.
+
+methodology_summary: |
+  A 3-Stage Pipeline executed entirely locally on CPU.
+  - Stage 1: Hybrid Search. We run FAISS Dense Vector Search (Qwen3-Embedding GGUF) and SPLADE Sparse Search (ONNX INT8), fused via RRF to retrieve the Top 100 candidates in ~11 seconds.
+  - Stage 2: Two-Phase Reranking. We run all 100 candidates through a two-part Tech/Logistics weighted fusion (70% Tech, 30% Logistics) using ms-marco-MiniLM-L-12-v2 in ~18 seconds.
+  - Stage 3: Generative Reasoning. We run a background llama-server with Qwen2.5-0.5B-Instruct to batch-generate 100 candidate rationales with shared prompt caching in ~123 seconds. Total runtime is ~3.6 minutes.
+
+declarations:
+  read_submission_spec: true
+  code_is_original_work: true
+  no_collusion: true
+  honeypot_check_done: true
+  reproduction_tested: true

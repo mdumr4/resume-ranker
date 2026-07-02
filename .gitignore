@@ -1,1 +1,11 @@
 candidates.jsonl
+.venv/
+.gemini/
+.agents/
+*.log
+*.zip
+sandbox/models/
+sandbox/index/faiss_qwen_index.bin
+sandbox/index/features_v3.parquet
+sandbox/index/splade_combined_v3.npz
+sandbox/bin/
