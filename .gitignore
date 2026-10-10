@@ -1,11 +1,41 @@
-candidates.jsonl
+# Environments
 .venv/
-.gemini/
-.agents/
+.env
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Local data & binaries
+data/
+candidates.jsonl
+*.jsonl
+*.parquet
+*.npz
+*.bin
+*.gguf
+*.onnx
+*.onnx.data
+
+# Heavy directories (synced via sync_assets.py from HF Bucket)
+models/
+bin/
+index/*.bin
+index/*.parquet
+index/*.npz
+sandbox/
+
+# Logs & temporary files
 *.log
 *.zip
-sandbox/models/
-sandbox/index/faiss_qwen_index.bin
-sandbox/index/features_v3.parquet
-sandbox/index/splade_combined_v3.npz
-sandbox/bin/
+llama-server.log
+llama-server-err.log
+
+# IDE & OS
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+.agents/
+.gemini/
