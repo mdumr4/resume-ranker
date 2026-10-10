@@ -260,3 +260,14 @@ class CandidatePreprocessor:
             logger.info(f"Saved features to {out_p}")
 
         return df
+
+
+if __name__ == "__main__":
+    import argparse
+    parser = argparse.ArgumentParser(description="Candidate Ingestion & Dynamic Trust Score Preprocessor")
+    parser.add_argument("--input", default="data/candidates.jsonl", help="Path to input candidates.jsonl")
+    parser.add_argument("--output", default="index/features_v3.parquet", help="Path to output features.parquet")
+    args = parser.parse_args()
+
+    prep = CandidatePreprocessor()
+    prep.process_file(args.input, args.output)

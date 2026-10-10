@@ -1,9 +1,14 @@
 [project]
-name = "india-runs-data-and-ai-challenge"
-version = "0.1.0"
-description = "Add your description here"
+name = "resume-ranker"
+version = "1.0.0"
+description = "Production-grade, scalable candidate discovery and resume ranking engine (Hybrid FAISS + SPLADE-v3 + ms-marco Reranker + Qwen2.5 Reasoner)"
 readme = "README.md"
 requires-python = ">=3.13"
+authors = [
+    {name = "Mohammed Umar F", email = "mdumr4@gmail.com"},
+    {name = "Soujanya K Hegde", email = "shegde092@gmail.com"}
+]
+license = {text = "MIT"}
 dependencies = [
     "faiss-cpu>=1.14.3",
     "ipykernel>=7.3.0",
@@ -23,7 +28,6 @@ dependencies = [
     "sentence-transformers>=5.6.0",
     "xgboost>=3.3.0",
 ]
-
 
 [tool.pytest.ini_options]
 pythonpath = ["."]

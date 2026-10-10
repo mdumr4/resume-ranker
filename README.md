@@ -63,7 +63,8 @@ Standard inference pipelines load both dense bi-encoders (Qwen-1.5B) and sparse 
   * **Merged Timeline Gap Detection**: Merges contiguous/overlapping career and education intervals, penalizing cumulative multi-year gaps (up to $-0.45$).
   * Inactivity penalty: Penalizes accounts dormant $> 200$ days.
 * **Reciprocal Rank Fusion (RRF)**:
-  $$	ext{RRF}(c) = \left( rac{1}{60 + 	ext{rank}_{	ext{dense}}} + rac{1}{60 + 	ext{rank}_{	ext{sparse}}} ight) 	imes 	ext{trust\_score}(c)$$
+  $$	ext{RRF}(c) = \left( rac{1}{60 + 	ext{rank}_{	ext{dense}}} + rac{1}{60 + 	ext{rank}_{	ext{sparse}}} 
+ight) 	imes 	ext{trust\_score}(c)$$
   Extracts the unified top 100 candidates in **$1.11	ext{s}$**.
 
 ### 3. Stage 2: Two-Part Cross-Encoder Semantic Reranking
@@ -145,14 +146,16 @@ uv run pytest tests/ -v
 
 ```
 resume-ranker/
-├── context/                           # Domain specifications & sample data
+├── context/                           # Domain specifications, prompts & research
+│   ├── Evolution of Ranking Systems.pdf # Technical architecture reference paper
 │   ├── job_description.docx           # Official target JD
+│   ├── LLM_PROMPT.md                  # Optimized system & user prompts for Qwen2.5
 │   ├── parsed_jd.json                 # Structured JD criteria & weights
 │   ├── redrob_signals_doc.docx        # Behavioral signals spec
 │   ├── submission_spec.docx           # Challenge rules & validation criteria
 │   └── Sample/
 │       ├── sample_candidates.json     # 50 sample candidates fixture
-│       └── sample_submission.csv
+│       └── sample_submission.csv      # Sample submission format
 ├── data/                              # Local data directory (git-ignored)
 │   └── candidates.jsonl               # Full 100K candidate dataset (487 MB)
 ├── index/                             # Vector indices (git-ignored)
@@ -167,7 +170,15 @@ resume-ranker/
 │   └── qwen2.5-0.5b-instruct-q4_k_m.gguf # Quantized reasoning LLM
 ├── bin/                               # Local C++ binaries (git-ignored)
 │   └── llama/                         # llama-server executable and DLLs
-├── src/                               # Modular Object-Oriented Core
+├── notebooks/                         # Exploratory Data Analysis & experiments
+│   └── EDA.ipynb                      # Complete dataset distributions & signal analysis
+├── sandbox/                           # Official Colab submission notebook
+│   └── run_pipeline_colab.ipynb       # Verified Google Colab end-to-end notebook
+├── scripts/                           # Offline utility & quantization scripts
+│   ├── export_bge_int8.py             # ONNX export utility
+│   ├── quantize_bge.py                # BGE model INT8 dynamic quantization
+│   └── quantize_int8.py               # SPLADE model INT8 dynamic quantization
+├── src/                               # Modular Object-Oriented Production Core
 │   ├── __init__.py
 │   ├── config.py                      # Strongly-typed Dataclass configuration
 │   ├── preprocessor.py                # Text serializer & Dynamic Trust Engine
@@ -175,7 +186,7 @@ resume-ranker/
 │   ├── reranker.py                    # Two-Part Cross-Encoder reranker
 │   ├── reasoner.py                    # Continuous batching LLM client
 │   ├── validator.py                   # Monotonic compliance & schema checker
-│   └── pipeline.py                    # Master CandidateRankingPipeline
+│   └── pipeline.py                    # Master CandidateRankingPipeline orchestrator
 ├── tests/                             # Diagnostic test suite
 │   ├── test_preprocessor.py           # Unit tests for Trust Score & timeline merging
 │   ├── test_retriever_and_reranker.py # Unit tests for RRF & sigmoid weighting
@@ -183,6 +194,7 @@ resume-ranker/
 │   └── test_pipeline_integration.py   # End-to-end integration test
 ├── rank.py                            # Production CLI entry point
 ├── sync_assets.py                     # One-click cloud bucket downloader
+├── submission.csv                     # Verified competition submission artifact
 ├── submission_metadata.yaml           # Official team & submission manifest
 └── pyproject.toml                     # Modern package dependency specification
 ```
