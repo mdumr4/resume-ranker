@@ -15,7 +15,7 @@ def download_file(url, dest, token):
 
 def main():
     os.makedirs("models", exist_ok=True)
-    token = "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"
+    token = os.getenv("HF_TOKEN")
     
     downloads = [
         ("https://huggingface.co/bartowski/Qwen_Qwen3-1.7B-GGUF/resolve/main/Qwen_Qwen3-1.7B-Q4_K_M.gguf", "models/Qwen_Qwen3-1.7B-Q4_K_M.gguf"),

@@ -1,7 +1,7 @@
 from transformers import AutoTokenizer
 import os
 
-token = "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"
+token = os.getenv("HF_TOKEN")
 
 print("Downloading SPLADE tokenizer locally...")
 splade_tok = AutoTokenizer.from_pretrained("naver/splade-v3", token=token)
