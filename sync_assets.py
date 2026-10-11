@@ -57,7 +57,7 @@ def sync_data():
     """Syncs raw candidates.jsonl dataset from bucket."""
     print("\n=== Syncing Dataset (candidates.jsonl) ===")
     os.makedirs(REPO_ROOT / "data", exist_ok=True)
-    cmd = ["hf", "buckets", "cp", f"{BUCKET_URI}/candidates.jsonl", str(REPO_ROOT / "data" / "candidates.jsonl")]
+    cmd = ["hf", "buckets", "cp", f"{BUCKET_URI}/data/candidates.jsonl", str(REPO_ROOT / "data" / "candidates.jsonl")]
     return run_cmd(cmd)
 
 
