@@ -1,106 +1,82 @@
-# Redrob Candidate Discovery & Resume Ranker
+# Resume Ranker: Scalable Multi-Stage Candidate Discovery & Ranking Engine
 
-[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
-[![FAISS](https://img.shields.io/badge/FAISS-IndexFlatIP-orange.svg)](https://github.com/facebookresearch/faiss)
-[![SPLADE](https://img.shields.io/badge/SPLADE-v3--sparse-green.svg)](https://github.com/naver/splade)
-[![CrossEncoder](https://img.shields.io/badge/CrossEncoder-MiniLM--L12-purple.svg)](https://huggingface.co/cross-encoder/ms-marco-MiniLM-L-12-v2)
-[![HuggingFace Bucket](https://img.shields.io/badge/HF%20Bucket-mdumr4%2FRedrob-yellow.svg)](https://huggingface.co/buckets/mdumr4/Redrob)
+[![Python 3.13+](https://img.shields.io/badge/python-3.13+-blue.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Hugging Face Bucket](https://img.shields.io/badge/Asset%20Lake-HF%20Bucket-orange.svg)](https://huggingface.co/buckets/mdumr4/Resume-Ranker)
+[![Tests: 11 Passed](https://img.shields.io/badge/Tests-11%20Passed%20(100%25)-green.svg)](tests/)
 
-A production-grade, CPU-bound candidate discovery and reranking pipeline developed for the **Redrob Talent Intelligence Hackathon** (India Runs Data and AI Challenge).
-
-The system filters and ranks candidate profiles from an initial pool of **100,000 resumes**, dynamically computes candidate platform trust and career gap penalties, and generates natural language match rationales. The entire end-to-end workflow executes fully locally on commodity CPU hardware in **under 2.5 minutes**, strictly respecting the 5-minute offline competition budget.
+A production-grade, CPU-optimized information retrieval and candidate discovery system designed to evaluate and rank **100,000+ candidate resumes** against complex multi-dimensional job descriptions in seconds.
 
 ---
 
-## Architecture Flow
+## Architecture Overview
+
+Standard keyword search fails on semantic nuance, while single-pass dense embedding models dilute technical requirements when applied to long, unstructured resumes. **Resume Ranker** solves this via a modular, decoupled 3-stage cascade:
 
 ```mermaid
-graph TD
-    %% Offline Asset Preparation
-    subgraph Offline ["Cloud Storage & Pre-Computation (HF Bucket)"]
-        Raw["candidates.jsonl (100K profiles)"] --> Prep["CandidatePreprocessor"]
-        Prep --> Feat["features_v3.parquet (Trust Scores & Text)"]
-        Prep --> DenseIdx["FAISS Dense Index (Qwen Embeddings)"]
-        Prep --> SparseIdx["SPLADE Sparse Matrix (CSR)"]
-        JD["Job Description (JD)"] --> JDEmb["Precomputed JD Vectors (Dense & Sparse)"]
+flowchart TD
+    subgraph DataLake["100,000+ Candidate Resumes"]
+        A[candidates.jsonl] --> B[Dynamic Trust Engine]
+        A --> C[Qwen3 Dense Embeddings]
+        A --> D[SPLADE-v3 Sparse Representations]
     end
 
-    %% Online Real-Time Pipeline
-    subgraph Online ["Online Inference Pipeline (Strict 5-Minute CPU Budget)"]
-        JDEmb --> S1["Stage 1: Vectorized Hybrid Retrieval"]
-        DenseIdx --> S1
-        SparseIdx --> S1
-        Feat --> S1
-        S1 -->|FAISS + SPLADE + RRF (k=60) * Trust| TopK["Top 100 Candidates (< 2s)"]
+    subgraph Stage1["Stage 1: Hybrid Retrieval & Trust Fusion (1.1s)"]
+        JD[Target Job Description] --> E[FAISS Index Search Top 10K]
+        JD --> F[SPLADE-v3 Dot Product Top 10K]
+        C --> E
+        D --> F
+        E & F & B --> G["Reciprocal Rank Fusion (RRF) & Trust Score Multiplier"]
+        G --> H["Top 100 Candidate Shortlist"]
+    end
 
-        TopK --> S2["Stage 2: Two-Part Cross-Encoder Reranking"]
-        Feat --> S2
-        S2 -->|70% Tech Match + 30% Logistics Match| Reranked["Precision Reranked Top 100 (~14s)"]
+    subgraph Stage2["Stage 2: Two-Part Cross-Encoder Semantic Reranking (13.8s)"]
+        H --> I["Part A: Technical Fit Cross-Encoder (Weight: 70%)"]
+        H --> J["Part B: Logistics & Preference Cross-Encoder (Weight: 30%)"]
+        I & J --> K["Sigmoid Normalization & Weighted Fusion"]
+        K --> L["Monotonically Ranked Top 100"]
+    end
 
-        Reranked --> S3["Stage 3: High-Throughput LLM Reasoning"]
-        S3 -->|llama-server Continuous Batching (Qwen2.5-0.5B)| Rationales["Candidate Match Rationales (~110s)"]
-
-        Rationales --> S4["Stage 4: Compliance Validation & Assembly"]
-        S4 --> Out["submission.csv (100 Rows, Monotonic Scores)"]
+    subgraph Stage3["Stage 3: Explainable AI Rationale Engine"]
+        L --> M{Reasoning Mode}
+        M -->|Standard| N["Continuous Batching LLM Server (Qwen2.5-0.5B)"]
+        M -->|Fast Mode| O["High-Throughput Deterministic Rationale Generator"]
+        N & O --> P["Output: ranked_candidates.csv (2-Sentence Explanations)"]
     end
 ```
 
 ---
 
-## Multi-Stage Technical Methodology
+## Core System Components (`src/`)
 
-### 1. Stage 0: Zero-RAM Static JD Representation
-Standard inference pipelines load both dense bi-encoders (Qwen-1.5B) and sparse lexical models into RAM at runtime, consuming $\sim 1.5	ext{ GB}$ of memory and adding $13	ext{s}$ of startup latency.
-* Because the target Job Description is fixed, its dense query vector (`jd_dense_query.npy`, $4.2	ext{ KB}$) and sparse SPLADE query representation (`jd_sparse_query.npy`, $244	ext{ KB}$) are precomputed.
-* **Result**: Stage 0 asset loading drops from $13.2	ext{s}$ to **$0.2	ext{s}$**, eliminating runtime embedding overhead.
-
-### 2. Stage 1: Vectorized Hybrid Retrieval & Dynamic Trust Engine
-* **Dense Retrieval (FAISS)**: Performs approximate nearest neighbor search via `faiss.IndexFlatIP` across 100,000 vectors, retrieving the top 10,000 candidates and shifting cosine scores to $[0, 1]$.
-* **Sparse Retrieval (SPLADE-v3)**: Evaluates exact keyword intersections via sparse CSR dot-products partitioned to the top 10,000 candidates.
-* **Dynamic Trust & Gap Penalty Engine**:
-  * Email/phone verification gate (unverified profiles capped at $0.10$).
-  * Multi-factor scoring: profile completeness ($20\%$), open-to-work flag ($20\%$), recruiter response rate ($10\%$), search appearance ($10\%$), interview completion ($10\%$), and GitHub activity ($5\%$).
-  * **Merged Timeline Gap Detection**: Merges contiguous/overlapping career and education intervals, penalizing cumulative multi-year gaps (up to $-0.45$).
-  * Inactivity penalty: Penalizes accounts dormant $> 200$ days.
-* **Reciprocal Rank Fusion (RRF)**:
-  $$	ext{RRF}(c) = \left( rac{1}{60 + 	ext{rank}_{	ext{dense}}} + rac{1}{60 + 	ext{rank}_{	ext{sparse}}} 
-ight) 	imes 	ext{trust\_score}(c)$$
-  Extracts the unified top 100 candidates in **$1.11	ext{s}$**.
-
-### 3. Stage 2: Two-Part Cross-Encoder Semantic Reranking
-Standard single-pass rerankers lose resolution when concatenating lengthy job descriptions with complex resumes. We decouple evaluation into two targeted cross-encoder inferences using `ms-marco-MiniLM-L-12-v2`:
-* **Part A (Tech Match - 70% weight)**: Cross-references technical requirements (ranking, retrieval, vector DBs, Python, evaluation metrics) against candidate career history and verified skills.
-* **Part B (Logistics Match - 30% weight)**: Cross-references location (Pune/Noida), notice period ($\le 30$ days), and work mode preferences against candidate logistics.
-* **Sigmoid Fusion**: Normalizes raw logits via Sigmoid ($\sigma$) and applies additive weighting:
-  $$	ext{Final Score} = 0.70 \cdot \sigma(	ext{logit}_{	ext{tech}}) + 0.30 \cdot \sigma(	ext{logit}_{	ext{logistics}})$$
-  Completes top 100 evaluation in **$13.8	ext{s}$** on CPU.
-
-### 4. Stage 3: Continuous Batching LLM Reasoning
-* Bypasses the Python Global Interpreter Lock (GIL) by launching a local C++ server (`llama-server.exe`) running `Qwen2.5-0.5B-Instruct` quantized to 4-bit (`Q4_K_M` GGUF).
-* Dispatches 32 concurrent HTTP requests utilizing continuous batching and shared KV-cache prompt reuse.
-* Enforces strict two-sentence format: (1) Reason for rank based on JD fit, (2) Targeted area for improvement.
-* Includes deterministic fallback generation if requests exceed timeout thresholds.
+| Module | Class / Component | Responsibilities & Innovations |
+|---|---|---|
+| [`src/config.py`](src/config.py) | `PipelineConfig` | Dataclass configuration with hardware auto-detection, CPU thread clamping, and intelligent multi-path resolution for indexes and models. |
+| [`src/preprocessor.py`](src/preprocessor.py) | `CandidatePreprocessor` | Structured text serialization and **Dynamic Trust Engine**: enforces email/phone verification gates, calculates profile completeness, and merges overlapping career intervals to penalize multi-year employment gaps. |
+| [`src/retriever.py`](src/retriever.py) | `HybridRetriever` | Vectorized hybrid search: queries FAISS (`IndexFlatIP`, 409 MB) and SPLADE-v3 CSR matrices, fusing scores via Reciprocal Rank Fusion ($k=60$) modulated by the candidate's Trust Score in **1.11s**. |
+| [`src/reranker.py`](src/reranker.py) | `TwoPartCrossEncoder` | Decoupled cross-encoder inference (`ms-marco-MiniLM-L-12-v2`). Evaluates technical requirements (70%) and logistics constraints (30%) independently, combining raw logits through Sigmoid normalization. |
+| [`src/reasoner.py`](src/reasoner.py) | `LLMReasoner` | Generates transparent two-sentence hiring rationales (fit justification + growth opportunity). Dispatches across 32 concurrent slots using local continuous batching, with automated zero-dependency deterministic fallback. |
+| [`src/validator.py`](src/validator.py) | `validate_submission_df` | Strict diagnostic schema validator ensuring regex adherence (`CAND_XXXXXXX`), 100-rank completeness, and strict mathematical monotonicity of ranking scores. |
+| [`src/pipeline.py`](src/pipeline.py) | `CandidateRankingPipeline` | Master orchestrator unifying Stages 0-4 with microsecond-level stage telemetry and error handling. |
 
 ---
 
 ## Benchmark Performance Profile (CPU-Only)
 
-Executed on an 8-Core Intel CPU / 16GB RAM:
+Benchmarked on standard 8-Core Intel CPU / 16GB RAM:
 
-| Pipeline Stage | Operation | Compute Overhead | Latency |
+| Pipeline Stage | Operation | Compute Profile | Latency |
 |---|---|---|---|
-| **Stage 0** | Load Precomputed Indices & Weights | Memory I/O | $1.8	ext{s}$ |
-| **Stage 1** | FAISS Dense Search ($10	ext{k}$) + SPLADE Sparse ($10	ext{k}$) + RRF | Vectorized Math | $1.1	ext{s}$ |
-| **Stage 2** | Two-Part Cross-Encoder Reranking ($100$ candidates) | PyTorch Batched Math | $13.8	ext{s}$ |
-| **Stage 3** | Continuous Batching LLM Reasoning ($100$ rationales) | C++ llama-server | $\sim 110	ext{s}$ |
-| **Stage 4** | Monotonicity Check & CSV Assembly | Disk I/O | $0.1	ext{s}$ |
-| **Total** | **End-to-End Execution** | **Strictly CPU** | **$pprox 127	ext{s}$ ($2.1	ext{ min}$)** |
-
-*(Note: Fast-mode execution with `--skip-llm` completes Stage 0-2 in **$16.9	ext{ seconds}$**).*
+| **Stage 0** | Load Precomputed Indices & Metadata | Memory I/O | $1.8\text{s}$ |
+| **Stage 1** | FAISS Dense ($10\text{k}$) + SPLADE Sparse ($10\text{k}$) + RRF Fusion | Vectorized NumPy / SciPy | $1.1\text{s}$ |
+| **Stage 2** | Two-Part Cross-Encoder Reranking ($100$ candidates) | PyTorch Batched Math | $13.8\text{s}$ |
+| **Stage 3** | Explainable AI Rationale Generation ($100$ explanations) | Deterministic / LLM | $0.1\text{s}$ / $110\text{s}$ |
+| **Stage 4** | Monotonicity Check & CSV Output Assembly | Disk I/O | $0.1\text{s}$ |
+| **Total** | **End-to-End Pipeline Execution (Fast Mode)** | **Strictly CPU** | **$\approx 16.9\text{s}$** |
 
 ---
 
-## Quickstart & Reproducibility
+## Quickstart & Usage
 
 ### 1. Installation
 Clone the repository and install dependencies with [uv](https://github.com/astral-sh/uv) or pip:
@@ -111,30 +87,34 @@ cd resume-ranker
 uv sync
 ```
 
-### 2. Download Precomputed Cloud Assets
-All golden assets ($2.95	ext{ GB}$) are hosted on the Hugging Face Bucket `hf://buckets/mdumr4/Redrob`. Synchronize them with one command:
+### 2. Download Precomputed Indices & Assets
+All pre-indexed vector data, sparse matrices, and models are hosted on the Hugging Face Bucket: [`hf://buckets/mdumr4/Resume-Ranker`](https://huggingface.co/buckets/mdumr4/Resume-Ranker).
 
 ```bash
-# Authenticate with Hugging Face (first time only)
+# Login to Hugging Face (first time only)
 hf auth login
 
-# Download indices, models, and candidate dataset
+# Synchronize all assets with one command
 python sync_assets.py --all
+
+# Or sync individual components
+python sync_assets.py --index    # FAISS + SPLADE + Features (630 MB)
+python sync_assets.py --data     # Full candidates dataset (487 MB)
+python sync_assets.py --models   # Offline model weights
 ```
 
-### 3. Run Pipeline Inference
-Execute the official reproduction command from the root of the repository:
+### 3. Run Candidate Ranking
 
 ```bash
-# Standard reproduction with LLM reasoning
-python rank.py --candidates ./data/candidates.jsonl --out ./submission.csv
+# Fast mode: hybrid retrieval + two-part reranking + instant rationales (~17s)
+python rank.py --skip-llm --out output/ranked_candidates.csv
 
-# Fast mode (retrieval + two-part reranking + deterministic rationales in ~17s)
-python rank.py --skip-llm --out ./submission.csv
+# Standard mode: full pipeline with continuous-batching LLM reasoning
+python rank.py --candidates data/candidates.jsonl --out output/ranked_candidates.csv
 ```
 
-### 4. Run Diagnostic Test Suite
-Run the automated verification suite covering trust calculation, date interval merging, RRF math, two-part cross-encoder weighting, and submission compliance:
+### 4. Run Automated Test Suite
+Verify that all algorithms, trust scoring formulas, career gap interval merging, RRF fusion, and ranking validators pass:
 
 ```bash
 uv run pytest tests/ -v
@@ -146,68 +126,64 @@ uv run pytest tests/ -v
 
 ```
 resume-ranker/
-├── context/                           # Domain specifications, prompts & research
-│   ├── Evolution of Ranking Systems.pdf # Technical architecture reference paper
-│   ├── job_description.docx           # Official target JD
-│   ├── LLM_PROMPT.md                  # Optimized system & user prompts for Qwen2.5
-│   ├── parsed_jd.json                 # Structured JD criteria & weights
-│   ├── redrob_signals_doc.docx        # Behavioral signals spec
-│   ├── submission_spec.docx           # Challenge rules & validation criteria
-│   └── Sample/
-│       ├── sample_candidates.json     # 50 sample candidates fixture
-│       └── sample_submission.csv      # Sample submission format
-├── data/                              # Local data directory (git-ignored)
-│   └── candidates.jsonl               # Full 100K candidate dataset (487 MB)
-├── index/                             # Vector indices (git-ignored)
+├── context/                           # Technical architecture & criteria references
+│   ├── Evolution of Ranking Systems.pdf # Architectural whitepaper
+│   ├── job_description.docx           # Reference Target JD
+│   ├── LLM_PROMPT.md                  # Prompt engineering specifications
+│   └── parsed_jd.json                 # Structured JD criteria & skill taxonomy
+├── data/                              # Datasets (large files git-ignored)
+│   ├── sample_candidates.json         # 50 sample profiles fixture for rapid unit testing
+│   └── candidates.jsonl               # 100K candidates dataset (487 MB, synced via CLI)
+├── index/                             # Vector indices & precomputed features (git-ignored)
 │   ├── faiss_qwen_index.bin           # 409 MB dense FAISS index
 │   ├── splade_combined_v3.npz         # 180 MB sparse CSR matrix
-│   ├── features_v3.parquet            # 44 MB precomputed text & trust scores
+│   ├── features_v3.parquet            # 44 MB precomputed text & trust features
 │   ├── jd_dense_query.npy             # Precomputed dense JD query
 │   └── jd_sparse_query.npy            # Precomputed sparse JD query
-├── models/                            # Model weights (git-ignored)
-│   ├── ms-marco-MiniLM-L-12-v2/       # Cross-Encoder model directory
-│   ├── splade_onnx_int8/              # INT8 quantized SPLADE model
-│   └── qwen2.5-0.5b-instruct-q4_k_m.gguf # Quantized reasoning LLM
-├── bin/                               # Local C++ binaries (git-ignored)
-│   └── llama/                         # llama-server executable and DLLs
-├── notebooks/                         # Exploratory Data Analysis & experiments
-│   └── EDA.ipynb                      # Complete dataset distributions & signal analysis
-├── sandbox/                           # Official Colab submission notebook
-│   └── run_pipeline_colab.ipynb       # Verified Google Colab end-to-end notebook
-├── scripts/                           # Offline utility & quantization scripts
+├── models/                            # Model weights (git-ignored, auto-downloaded if absent)
+│   └── ms-marco-MiniLM-L-12-v2/       # Cross-Encoder model directory
+├── notebooks/                         # Exploratory Data Analysis & visual analytics
+│   └── EDA.ipynb                      # Candidate distributions, signal correlations & trust metrics
+├── scripts/                           # Offline model quantization utilities
 │   ├── export_bge_int8.py             # ONNX export utility
 │   ├── quantize_bge.py                # BGE model INT8 dynamic quantization
 │   └── quantize_int8.py               # SPLADE model INT8 dynamic quantization
 ├── src/                               # Modular Object-Oriented Production Core
 │   ├── __init__.py
-│   ├── config.py                      # Strongly-typed Dataclass configuration
-│   ├── preprocessor.py                # Text serializer & Dynamic Trust Engine
-│   ├── retriever.py                   # FAISS + SPLADE + RRF hybrid engine
-│   ├── reranker.py                    # Two-Part Cross-Encoder reranker
-│   ├── reasoner.py                    # Continuous batching LLM client
-│   ├── validator.py                   # Monotonic compliance & schema checker
+│   ├── config.py                      # Dataclass configuration with auto-path resolution
+│   ├── preprocessor.py                # Text formatting & Dynamic Trust Engine CLI
+│   ├── retriever.py                   # FAISS + SPLADE + Trust-weighted RRF hybrid engine
+│   ├── reranker.py                    # Two-Part Cross-Encoder reranker (70% Tech, 30% Logistics)
+│   ├── reasoner.py                    # Explainable AI Rationale Engine
+│   ├── validator.py                   # Strict schema & monotonicity validator
 │   └── pipeline.py                    # Master CandidateRankingPipeline orchestrator
-├── tests/                             # Diagnostic test suite
+├── tests/                             # Diagnostic test suite (100% pass rate)
 │   ├── test_preprocessor.py           # Unit tests for Trust Score & timeline merging
 │   ├── test_retriever_and_reranker.py # Unit tests for RRF & sigmoid weighting
-│   ├── test_validator.py              # Unit tests for submission rules
+│   ├── test_validator.py              # Unit tests for ranking schema rules
 │   └── test_pipeline_integration.py   # End-to-end integration test
 ├── rank.py                            # Production CLI entry point
-├── sync_assets.py                     # One-click cloud bucket downloader
-├── submission.csv                     # Verified competition submission artifact
-├── submission_metadata.yaml           # Official team & submission manifest
-└── pyproject.toml                     # Modern package dependency specification
+├── sync_assets.py                     # Hugging Face Bucket synchronization utility
+├── pyproject.toml                     # Python package dependency specification
+├── LICENSE                            # MIT License
+└── README.md                          # Production project documentation
 ```
 
 ---
 
-## Submission & Team Metadata
+## Cloud Storage & Asset Lake Architecture
 
-* **Competition**: Redrob Talent Intelligence Hackathon (India Runs Data and AI Challenge)
-* **Team Name**: Aura Farmers
-* **Team Members**:
-  * Mohammed Umar F (`mdumr4@gmail.com`) — Team Lead, AI & Backend Engineer
-  * Soujanya K Hegde (`shegde092@gmail.com`) — System Engineer, Backend Engineer
-* **Official Repository**: `https://github.com/mdumr4/resume-ranker`
-* **Cloud Bucket**: `hf://buckets/mdumr4/Redrob`
-* **License**: MIT
+To keep the git repository lightweight (< 5 MB) while supporting zero-friction replication of large-scale embeddings and indices, assets are partitioned:
+
+1. **GitHub Repository (`resume-ranker`)**: Contains all source code, unit tests, configurations, quantization scripts, reference documentation, and sample fixtures.
+2. **Hugging Face Bucket (`hf://buckets/mdumr4/Resume-Ranker`)**: Canonical asset lake hosting pre-built FAISS indices, SPLADE CSR sparse matrices, precomputed feature tables, and the 100K candidates dataset.
+3. **Local PC Storage**: Once synced or built, heavy `.bin`, `.parquet`, `.npz`, and `.jsonl` files are strictly git-ignored. Users can delete local copies at any time to free disk space and re-sync on demand using `python sync_assets.py`.
+
+---
+
+## Authors & License
+
+* **Mohammed Umar F** ([GitHub](https://github.com/mdumr4)) — AI & Backend Engineer
+* **Soujanya K Hegde** — Systems & Backend Engineer
+
+Licensed under the [MIT License](LICENSE).

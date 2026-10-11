@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 """
-Redrob Candidate Discovery & Resume Ranker - Production CLI Entry Point.
+Production CLI Entry Point for Resume Ranker.
+Ranks 100K+ candidate profiles against job requirements using Hybrid Retrieval
+(FAISS + SPLADE + RRF), Two-Part Cross-Encoder semantic reranking, and
+explainable rationale generation.
 """
 import sys
 import argparse
@@ -15,22 +18,22 @@ from src.config import PipelineConfig
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Redrob Candidate Discovery & Resume Ranker - Production Pipeline"
+        description="Resume Ranker - Production Multi-Stage Candidate Discovery & Ranking Engine"
     )
     parser.add_argument(
         "--candidates",
         default="./data/candidates.jsonl",
-        help="Path to raw candidates JSON or JSONL file (default: ./data/candidates.jsonl)",
+        help="Path to candidates dataset file (default: ./data/candidates.jsonl)",
     )
     parser.add_argument(
         "--out",
-        default="./submission.csv",
-        help="Output path for submission CSV (default: ./submission.csv)",
+        default="./output/ranked_candidates.csv",
+        help="Output CSV path for ranked candidates (default: ./output/ranked_candidates.csv)",
     )
     parser.add_argument(
         "--skip-llm",
         action="store_true",
-        help="Skip LLM generation and use deterministic rationales (fast mode)",
+        help="Skip LLM server and use deterministic fast rationales (runs in ~17s)",
     )
     parser.add_argument(
         "--threads",

@@ -11,7 +11,7 @@ def preprocessor():
 
 @pytest.fixture
 def sample_candidate():
-    sample_file = Path(__file__).resolve().parent.parent / "context" / "Sample" / "sample_candidates.json"
+    sample_file = Path(__file__).resolve().parent.parent / "data" / "sample_candidates.json"
     with open(sample_file, "r", encoding="utf-8") as f:
         data = json.load(f)
     return data[0]

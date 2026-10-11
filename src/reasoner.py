@@ -3,6 +3,7 @@ import socket
 import logging
 import subprocess
 import concurrent.futures
+from pathlib import Path
 from typing import Dict, List, Tuple, Any, Optional
 import requests
 import pandas as pd
@@ -13,8 +14,9 @@ logger = logging.getLogger("reasoner")
 
 class LLMReasoner:
     """
-    Manages the lifecycle of llama-server and executes high-throughput
-    continuous batched generation for candidate ranking rationales.
+    Manages generation of explainable candidate hiring rationales.
+    Dispatches to local llama-server continuous batching pool when available,
+    or falls back to high-throughput deterministic rationales.
     """
 
     def __init__(self, config: Optional[PipelineConfig] = None):
@@ -24,10 +26,18 @@ class LLMReasoner:
         self.err_file = None
 
     def start_server(self) -> bool:
-        """Starts the local llama-server in the background and waits for port to be open."""
+        """Starts local llama-server in the background if binary and model exist."""
         bin_path = self.config.llama_server_bin
         model_path = self.config.llm_model_path
         port = self.config.llm_port
+
+        if not bin_path or not Path(bin_path).exists():
+            logger.info("llama-server binary not found on system. Using deterministic rationale engine.")
+            return False
+
+        if not model_path or not Path(model_path).exists():
+            logger.info("Local LLM model GGUF not found. Using deterministic rationale engine.")
+            return False
 
         logger.info(f"Starting llama-server on port {port}...")
         logger.info(f"  Binary: {bin_path}")
@@ -42,10 +52,9 @@ class LLMReasoner:
             "--port", str(port),
         ]
 
-        self.log_file = open("llama-server.log", "w", encoding="utf-8")
-        self.err_file = open("llama-server-err.log", "w", encoding="utf-8")
-
         try:
+            self.log_file = open("llama-server.log", "w", encoding="utf-8")
+            self.err_file = open("llama-server-err.log", "w", encoding="utf-8")
             self.process = subprocess.Popen(
                 cmd,
                 stdout=self.log_file,
@@ -53,13 +62,12 @@ class LLMReasoner:
                 cwd=str(self.config.base_dir),
             )
         except Exception as e:
-            logger.error(f"Failed to start llama-server process: {e}")
+            logger.warning(f"Failed to start llama-server process: {e}")
             self._close_logs()
             return False
 
-        # Wait for socket to become ready
         ready = False
-        logger.info("Waiting for llama-server to be ready...")
+        logger.info("Waiting for llama-server socket...")
         for _ in range(35):
             time.sleep(1)
             try:
@@ -71,17 +79,17 @@ class LLMReasoner:
                 pass
 
         if not ready:
-            logger.error("llama-server failed to respond within 35 seconds. See llama-server-err.log.")
+            logger.warning("llama-server failed to respond within 35 seconds. Reverting to fallback.")
             self.stop_server()
             return False
 
-        logger.info("llama-server is online and ready!")
+        logger.info("llama-server is online and operational!")
         return True
 
     def stop_server(self):
         """Terminates the llama-server process cleanly."""
         if self.process is not None:
-            logger.info("Terminating llama-server process...")
+            logger.info("Stopping llama-server process...")
             try:
                 self.process.terminate()
                 self.process.wait(timeout=5)
@@ -93,7 +101,6 @@ class LLMReasoner:
             self.process = None
 
         self._close_logs()
-        logger.info("llama-server stopped.")
 
     def _close_logs(self):
         if self.log_file:
@@ -110,7 +117,7 @@ class LLMReasoner:
             self.err_file = None
 
     def build_prompt(self, rank: int, row: pd.Series) -> str:
-        """Constructs the prompt for the candidate rationale."""
+        """Constructs chat prompt for the candidate rationale."""
         def limit_words(text: Any, limit: int) -> str:
             if not isinstance(text, str):
                 return ""
@@ -189,11 +196,11 @@ class LLMReasoner:
         df: pd.DataFrame,
         skip_llm: bool = False,
     ) -> List[Dict[str, Any]]:
-        """Generates rationales for all ranked candidates using continuous batching or fallback."""
+        """Generates rationales for all ranked candidates."""
         df_map = df.set_index("candidate_id")
 
         if skip_llm:
-            logger.info("LLM generation skipped by user flag. Generating deterministic rationales...")
+            logger.info("Using deterministic rationale generator (fast mode)...")
             results = []
             for rank_idx, (cid, score) in enumerate(ranked_candidates):
                 rank = rank_idx + 1
@@ -206,10 +213,8 @@ class LLMReasoner:
                 })
             return results
 
-        # Start llama-server
         server_started = self.start_server()
         if not server_started:
-            logger.warning("Falling back to deterministic rationales since llama-server is unavailable.")
             return self.generate_rationales(ranked_candidates, df, skip_llm=True)
 
         t0 = time.time()
@@ -242,5 +247,5 @@ class LLMReasoner:
         finally:
             self.stop_server()
 
-        logger.info(f"Stage 3 Reasoning generation complete in {time.time() - t0:.1f}s")
+        logger.info(f"Reasoning generation complete in {time.time() - t0:.1f}s")
         return results

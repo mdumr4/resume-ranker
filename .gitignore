@@ -1,4 +1,4 @@
-# Environments
+# Environments & Package Managers
 .venv/
 .env
 __pycache__/
@@ -7,10 +7,10 @@ __pycache__/
 .coverage
 htmlcov/
 
-# Local data & binaries
-data/
-candidates.jsonl
-*.jsonl
+# Local Large Data & Binaries (sync via sync_assets.py)
+data/candidates.jsonl
+data/*.jsonl
+!data/sample_candidates.json
 *.parquet
 *.npz
 *.bin
@@ -18,17 +18,16 @@ candidates.jsonl
 *.onnx
 *.onnx.data
 
-# Heavy directories (synced via sync_assets.py from HF Bucket)
+# Heavy directories
 models/
-bin/
 index/*.bin
 index/*.parquet
 index/*.npz
-sandbox/
 
-# Logs & temporary files
+# Generated Pipeline Outputs & Logs
+output/
+submission*.csv
 *.log
-*.zip
 llama-server.log
 llama-server-err.log
 

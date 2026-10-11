@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-Asset Synchronization Utility for Redrob Candidate Discovery & Resume Ranker.
-Downloads precomputed indices, model weights, and raw datasets directly from
-the Hugging Face Bucket: hf://buckets/mdumr4/Redrob
+Asset Synchronization Utility for Resume Ranker.
+Downloads precomputed indices, model weights, and datasets directly from
+the Hugging Face Bucket: hf://buckets/mdumr4/Resume-Ranker
 """
 
 import sys
@@ -12,7 +12,7 @@ import subprocess
 import shutil
 from pathlib import Path
 
-BUCKET_URI = "hf://buckets/mdumr4/Redrob"
+BUCKET_URI = "hf://buckets/mdumr4/Resume-Ranker"
 REPO_ROOT = Path(__file__).resolve().parent
 
 
@@ -63,7 +63,7 @@ def sync_data():
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Sync golden precomputed assets from Hugging Face Bucket (hf://buckets/mdumr4/Redrob)"
+        description="Sync assets from Hugging Face Bucket (hf://buckets/mdumr4/Resume-Ranker)"
     )
     parser.add_argument("--all", action="store_true", help="Download all assets (index, models, and data)")
     parser.add_argument("--index", action="store_true", help="Download vector indices (FAISS, SPLADE, features)")
@@ -74,7 +74,6 @@ def main():
     if not check_hf_cli():
         sys.exit(1)
 
-    # Default to --all if no specific flag provided
     if not (args.all or args.index or args.models or args.data):
         args.all = True
 

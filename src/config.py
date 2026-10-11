@@ -1,5 +1,6 @@
 import os
 import sys
+import shutil
 import logging
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -26,7 +27,7 @@ def get_optimal_thread_count() -> int:
 
 
 def find_first_existing(candidates: List[str], base_dir: Optional[Path] = None) -> str:
-    """Searches multiple candidate locations and returns the first existing path."""
+    """Searches candidate locations and returns the first existing path."""
     if base_dir is None:
         base_dir = Path(__file__).resolve().parent.parent
 
@@ -43,7 +44,7 @@ def find_first_existing(candidates: List[str], base_dir: Optional[Path] = None) 
 
 @dataclass
 class PipelineConfig:
-    """Production configuration parameters for the Candidate Ranking Pipeline."""
+    """Production configuration parameters for Candidate Ranking Pipeline."""
 
     # Environment
     base_dir: Path = field(default_factory=lambda: Path(__file__).resolve().parent.parent)
@@ -122,65 +123,57 @@ class PipelineConfig:
         if not self.features_path:
             self.features_path = find_first_existing([
                 "index/features_v3.parquet",
-                "sandbox/index/features_v3.parquet",
             ], self.base_dir)
 
         if not self.faiss_index_path:
             self.faiss_index_path = find_first_existing([
                 "index/faiss_qwen_index.bin",
-                "sandbox/index/faiss_qwen_index.bin",
             ], self.base_dir)
 
         if not self.splade_index_path:
             self.splade_index_path = find_first_existing([
                 "index/splade_combined_v3.npz",
-                "sandbox/index/splade_combined_v3.npz",
             ], self.base_dir)
 
         if not self.dense_query_path:
             self.dense_query_path = find_first_existing([
                 "index/jd_dense_query.npy",
-                "sandbox/index/jd_dense_query.npy",
             ], self.base_dir)
 
         if not self.sparse_query_path:
             self.sparse_query_path = find_first_existing([
                 "index/jd_sparse_query.npy",
-                "sandbox/index/jd_sparse_query.npy",
             ], self.base_dir)
 
         if not self.candidates_jsonl_path:
             self.candidates_jsonl_path = find_first_existing([
                 "data/candidates.jsonl",
-                "candidates.jsonl",
+                "data/sample_candidates.json",
             ], self.base_dir)
 
-        # Resolve Model Paths
+        # Resolve Model Paths (use local weights if present, fallback to HF Hub identifier)
         if not self.cross_encoder_path:
-            self.cross_encoder_path = find_first_existing([
-                "models/ms-marco-MiniLM-L-12-v2",
-                "sandbox/models/ms-marco-MiniLM-L-12-v2",
-            ], self.base_dir)
+            local_ce = (self.base_dir / "models" / "ms-marco-MiniLM-L-12-v2").resolve()
+            if local_ce.exists():
+                self.cross_encoder_path = str(local_ce)
+            else:
+                self.cross_encoder_path = "cross-encoder/ms-marco-MiniLM-L-12-v2"
 
         if not self.llm_model_path:
-            self.llm_model_path = find_first_existing([
-                "models/qwen2.5-0.5b-instruct-q4_k_m.gguf",
-                "sandbox/models/qwen2.5-0.5b-instruct-q4_k_m.gguf",
-            ], self.base_dir)
-
-        # Resolve Llama Server Binary
-        if not self.llama_server_bin:
-            if self.is_windows:
-                self.llama_server_bin = find_first_existing([
-                    "bin/llama/llama-server.exe",
-                    "sandbox/bin/llama/llama-server.exe",
-                ], self.base_dir)
+            local_llm = (self.base_dir / "models" / "qwen2.5-0.5b-instruct-q4_k_m.gguf").resolve()
+            if local_llm.exists():
+                self.llm_model_path = str(local_llm)
             else:
-                self.llama_server_bin = find_first_existing([
-                    "bin/llama/llama-server",
-                    "sandbox/bin/llama/llama-server",
-                    "llama-server",
-                ], self.base_dir)
+                self.llm_model_path = ""
+
+        # Resolve Llama Server Binary (check env var, PATH, or local directory)
+        if not self.llama_server_bin:
+            env_bin = os.environ.get("LLAMA_SERVER_BIN", "")
+            if env_bin and Path(env_bin).exists():
+                self.llama_server_bin = env_bin
+            else:
+                which_bin = shutil.which("llama-server") or shutil.which("llama-server.exe")
+                self.llama_server_bin = which_bin if which_bin else ""
 
     @property
     def jd_search_query(self) -> str:
